@@ -1,0 +1,461 @@
+version: '3.8'
+
+# =============================================================================
+# Система агрегации учебной литературы - Docker Compose конфигурация
+# =============================================================================
+
+services:
+  # ===========================================================================
+  # PostgreSQL 15 - Основная база данных
+  # ===========================================================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: literature_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-literature_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-literature_password}
+      POSTGRES_DB: ${POSTGRES_DB:-literature_db}
+      # Оптимизация для разработки
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-literature_user} -d ${POSTGRES_DB:-literature_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - literature_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    labels:
+      - "com.literature.service=database"
+      - "com.literature.description=PostgreSQL 15 Database"
+
+  # ===========================================================================
+  # MinIO - S3-совместимое объектное хранилище
+  # ===========================================================================
+  minio:
+    image: minio/minio:RELEASE.2024-01-18T22-51-28Z
+    container_name: literature_minio
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+      MINIO_BROWSER_REDIRECT_URL: http://localhost:9001
+    volumes:
+      - minio_data:/data
+    ports:
+      - "${MINIO_API_PORT:-9000}:9000"     # S3 API
+      - "${MINIO_CONSOLE_PORT:-9001}:9001" # Web Console
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 15s
+    networks:
+      - literature_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    labels:
+      - "com.literature.service=storage"
+      - "com.literature.description=MinIO Object Storage"
+
+  # ===========================================================================
+  # MinIO Client - Инициализация бакетов и CORS при первом запуске
+  # ===========================================================================
+  minio-init:
+    image: minio/mc:latest
+    container_name: literature_minio_init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+        echo 'Waiting for MinIO...';
+        sleep 5;
+        mc alias set myminio http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD};
+        mc mb --ignore-existing myminio/$${MINIO_BUCKET};
+        mc anonymous set download myminio/$${MINIO_BUCKET};
+        echo 'Configuring CORS for browser access...';
+        cat > /tmp/cors.json << 'CORSEOF'
+        {
+          \"CORSRules\": [
+            {
+              \"AllowedOrigins\": [\"http://localhost:3000\", \"http://127.0.0.1:3000\", \"http://localhost:8000\"],
+              \"AllowedMethods\": [\"GET\", \"HEAD\"],
+              \"AllowedHeaders\": [\"*\"],
+              \"ExposeHeaders\": [\"Content-Length\", \"Content-Type\", \"Content-Disposition\"],
+              \"MaxAgeSeconds\": 3600
+            }
+          ]
+        }
+        CORSEOF
+        mc cors set myminio/$${MINIO_BUCKET} /tmp/cors.json || echo 'CORS config may already exist';
+        echo 'MinIO bucket created and CORS configured!';
+        exit 0;
+      "
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+      MINIO_BUCKET: ${MINIO_BUCKET:-literature}
+    networks:
+      - literature_network
+    labels:
+      - "com.literature.service=init"
+
+  # ===========================================================================
+  # Meilisearch - Полнотекстовый поиск
+  # ===========================================================================
+  meilisearch:
+    image: getmeili/meilisearch:v1.6.2
+    container_name: literature_search
+    restart: unless-stopped
+    environment:
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:-masterKey1234567890}
+      MEILI_ENV: ${MEILI_ENV:-development}
+      MEILI_NO_ANALYTICS: "true"
+      MEILI_HTTP_PAYLOAD_SIZE_LIMIT: "104857600"  # 100MB
+      MEILI_LOG_LEVEL: "INFO"
+    volumes:
+      - meilisearch_data:/meili_data
+    ports:
+      - "${MEILI_PORT:-7700}:7700"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7700/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - literature_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    labels:
+      - "com.literature.service=search"
+      - "com.literature.description=Meilisearch Full-text Search"
+
+  # ===========================================================================
+  # Backend - FastAPI приложение
+  # ===========================================================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        - PYTHON_VERSION=3.11
+    container_name: literature_backend
+    restart: unless-stopped
+    environment:
+      # Database (async driver for SQLAlchemy)
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-literature_user}:${POSTGRES_PASSWORD:-literature_password}@postgres:5432/${POSTGRES_DB:-literature_db}
+
+      # MinIO
+      MINIO_ENDPOINT: minio:9000
+      MINIO_PUBLIC_ENDPOINT: ${MINIO_PUBLIC_ENDPOINT:-localhost:9000}
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+      MINIO_BUCKET: ${MINIO_BUCKET:-literature}
+      MINIO_SECURE: "false"
+      MINIO_PUBLIC_SECURE: "false"
+
+      # Meilisearch
+      MEILI_URL: http://meilisearch:7700
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:-masterKey1234567890}
+
+      # Application
+      SECRET_KEY: ${SECRET_KEY:-your-secret-key-change-in-production}
+      DEBUG: ${DEBUG:-true}
+
+      # CORS - разрешенные origins
+      CORS_ORIGINS: "http://localhost:3000,http://127.0.0.1:3000,http://frontend:3000"
+
+      # Redis/Celery
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+
+      # Google Books API (optional)
+      GOOGLE_BOOKS_API_KEY: ${GOOGLE_BOOKS_API_KEY:-}
+    volumes:
+      # Hot reload для разработки
+      - ./backend/app:/app/app:cached
+      - ./backend/alembic:/app/alembic:cached
+      # Исключаем __pycache__ через volume
+      - backend_pycache:/app/app/__pycache__
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      meilisearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    networks:
+      - literature_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+    labels:
+      - "com.literature.service=backend"
+      - "com.literature.description=FastAPI Backend"
+
+  # ===========================================================================
+  # Frontend - React приложение с Vite
+  # ===========================================================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - NODE_VERSION=20
+    container_name: literature_frontend
+    restart: unless-stopped
+    environment:
+      # API URL для клиента (браузер -> backend напрямую)
+      VITE_API_URL: http://localhost:${BACKEND_PORT:-8000}
+      # API URL для SSR/proxy (контейнер -> контейнер)
+      VITE_API_INTERNAL_URL: http://backend:8000
+      NODE_ENV: development
+    volumes:
+      # Hot reload для разработки
+      - ./frontend/src:/app/src:cached
+      - ./frontend/public:/app/public:cached
+      - ./frontend/index.html:/app/index.html:cached
+      # Исключаем node_modules через named volume
+      - frontend_node_modules:/app/node_modules
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--spider", "http://localhost:3000"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 45s
+    networks:
+      - literature_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    labels:
+      - "com.literature.service=frontend"
+      - "com.literature.description=React Frontend"
+
+  # ===========================================================================
+  # Redis - Message broker для Celery
+  # ===========================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: literature_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    networks:
+      - literature_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    labels:
+      - "com.literature.service=redis"
+      - "com.literature.description=Redis Message Broker"
+
+  # ===========================================================================
+  # Celery Worker - Фоновые задачи
+  # ===========================================================================
+  celery-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        - PYTHON_VERSION=3.11
+    container_name: literature_celery_worker
+    restart: unless-stopped
+    command: celery -A app.core.celery_app worker --loglevel=info --concurrency=2
+    environment:
+      # Database
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-literature_user}:${POSTGRES_PASSWORD:-literature_password}@postgres:5432/${POSTGRES_DB:-literature_db}
+
+      # MinIO
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+      MINIO_BUCKET: ${MINIO_BUCKET:-literature}
+      MINIO_SECURE: "false"
+
+      # Redis/Celery
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+
+      # Application
+      SECRET_KEY: ${SECRET_KEY:-your-secret-key-change-in-production}
+      DEBUG: ${DEBUG:-true}
+
+      # Google Books API (optional)
+      GOOGLE_BOOKS_API_KEY: ${GOOGLE_BOOKS_API_KEY:-}
+    volumes:
+      - ./backend/app:/app/app:cached
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - literature_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+    labels:
+      - "com.literature.service=celery-worker"
+      - "com.literature.description=Celery Background Worker"
+
+  # ===========================================================================
+  # Celery Beat - Планировщик периодических задач
+  # ===========================================================================
+  celery-beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        - PYTHON_VERSION=3.11
+    container_name: literature_celery_beat
+    restart: unless-stopped
+    command: celery -A app.core.celery_app beat --loglevel=info
+    environment:
+      # Database
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-literature_user}:${POSTGRES_PASSWORD:-literature_password}@postgres:5432/${POSTGRES_DB:-literature_db}
+
+      # Redis/Celery
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+
+      # Application
+      SECRET_KEY: ${SECRET_KEY:-your-secret-key-change-in-production}
+      DEBUG: ${DEBUG:-true}
+    volumes:
+      - ./backend/app:/app/app:cached
+    depends_on:
+      - celery-worker
+    networks:
+      - literature_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    labels:
+      - "com.literature.service=celery-beat"
+      - "com.literature.description=Celery Beat Scheduler"
+
+  # ===========================================================================
+  # Nginx Reverse Proxy (опционально - для production-like окружения)
+  # ===========================================================================
+  nginx:
+    image: nginx:alpine
+    container_name: literature_nginx
+    restart: unless-stopped
+    profiles:
+      - production
+    ports:
+      - "${NGINX_PORT:-80}:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - literature_network
+    labels:
+      - "com.literature.service=proxy"
+
+# =============================================================================
+# Volumes - Персистентное хранение данных
+# =============================================================================
+volumes:
+  # Данные PostgreSQL
+  postgres_data:
+    driver: local
+    labels:
+      - "com.literature.volume=database"
+
+  # Данные MinIO (файлы пользователей)
+  minio_data:
+    driver: local
+    labels:
+      - "com.literature.volume=storage"
+
+  # Индексы Meilisearch
+  meilisearch_data:
+    driver: local
+    labels:
+      - "com.literature.volume=search"
+
+  # Данные Redis
+  redis_data:
+    driver: local
+    labels:
+      - "com.literature.volume=redis"
+
+  # Кэши для разработки
+  backend_pycache:
+    driver: local
+
+  frontend_node_modules:
+    driver: local
+
+# =============================================================================
+# Networks - Изолированная сеть для сервисов
+# =============================================================================
+networks:
+  literature_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+    labels:
+      - "com.literature.network=main"

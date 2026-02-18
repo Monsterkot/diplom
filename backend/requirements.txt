@@ -1,0 +1,71 @@
+# =============================================================================
+# Literature Aggregation System - Python Dependencies
+# =============================================================================
+
+# Web Framework
+fastapi==0.109.2
+uvicorn[standard]==0.27.1
+python-multipart==0.0.9
+
+# Async Database (SQLAlchemy 2.0+ with asyncpg)
+sqlalchemy[asyncio]==2.0.25
+asyncpg==0.29.0
+greenlet==3.0.3
+
+# Sync database (для Alembic миграций)
+psycopg2-binary==2.9.9
+
+# Migrations
+alembic==1.13.1
+
+# MinIO Client (async)
+minio==7.2.3
+aiofiles==23.2.1
+
+# Meilisearch Client
+meilisearch-python-sdk==3.0.1
+
+# Authentication & Security
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+bcrypt==4.1.2
+
+# Validation & Settings
+pydantic==2.6.1
+pydantic-settings==2.1.0
+email-validator==2.1.0.post1
+
+# HTTP Client (for external API aggregation)
+httpx==0.26.0
+aiohttp==3.9.3
+
+# Background Tasks (Celery)
+celery[redis]==5.3.6
+redis==5.0.1
+flower==2.0.1
+
+# File handling
+python-magic==0.4.27
+PyPDF2==3.0.1
+chardet==5.2.0
+
+# Text extraction for search indexing
+PyMuPDF==1.23.21
+ebooklib==0.18
+beautifulsoup4==4.12.3
+lxml==5.1.0
+
+# Date/Time
+python-dateutil==2.8.2
+
+# Development & Testing
+pytest==7.4.4
+pytest-asyncio==0.23.4
+pytest-cov==4.1.0
+httpx==0.26.0
+black==24.1.1
+isort==5.13.2
+mypy==1.8.0
+
+# Logging
+loguru==0.7.2
