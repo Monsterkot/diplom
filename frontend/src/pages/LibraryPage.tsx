@@ -67,6 +67,8 @@ function LibraryPage() {
           category: filters.category || undefined,
           author: filters.author || undefined,
           language: filters.language || undefined,
+          yearFrom: filters.yearFrom || undefined,
+          yearTo: filters.yearTo || undefined,
         })
         return response.data
       }

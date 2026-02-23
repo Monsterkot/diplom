@@ -30,6 +30,11 @@ export const getBookStreamUrl = (bookId: number): string => {
   return `${API_URL}/api/books/${bookId}/file/stream`
 }
 
+// Helper to get HTML preview URL for DOCX files
+export const getBookHtmlUrl = (bookId: number): string => {
+  return `${API_URL}/api/books/${bookId}/file/html`
+}
+
 // Helper to get download URL for a book file - forces browser to download
 export const getBookDownloadUrl = (bookId: number): string => {
   return `${API_URL}/api/books/${bookId}/file/stream?download=true`
@@ -156,6 +161,8 @@ export interface BooksQueryParams {
   author?: string
   language?: string
   source?: string
+  yearFrom?: number
+  yearTo?: number
 }
 
 export const booksApi = {
@@ -217,6 +224,9 @@ export const booksApi = {
     download = false
   ): Promise<AxiosResponse<{ url: string; file_name: string; file_size: number; content_type: string }>> =>
     api.get(`/api/books/${id}/file`, { params: { download } }),
+
+  getBookHtml: (id: number): Promise<AxiosResponse<{ html: string; text: string }>> =>
+    api.get(`/api/books/${id}/file/html`),
 }
 
 // ============ Search API ============

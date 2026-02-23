@@ -107,7 +107,7 @@ async def search_books(
         category: Filter by category
         author: Filter by author
         language: Filter by language
-        content_type: Filter by content type (pdf, epub, txt)
+        content_type: Filter by content type (pdf, epub, txt, docx)
         year_from: Filter by publication year (minimum)
         year_to: Filter by publication year (maximum)
         sort: Sort field and direction

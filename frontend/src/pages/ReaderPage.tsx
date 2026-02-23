@@ -271,6 +271,7 @@ function ReaderPage() {
         <div className="bg-white rounded-lg border overflow-hidden" style={{ height: 'calc(100vh - 24rem)', minHeight: '500px' }}>
           <Reader
             url={fileUrl}
+            bookId={parseInt(bookId || '0', 10)}
             title={book.title}
             contentType={book.contentType || ''}
             fileName={book.fileName}

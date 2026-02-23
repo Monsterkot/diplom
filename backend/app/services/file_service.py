@@ -23,6 +23,7 @@ class FileType(str, Enum):
     PDF = "application/pdf"
     EPUB = "application/epub+zip"
     TXT = "text/plain"
+    DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
 
 class FileValidationResult(NamedTuple):
@@ -54,19 +55,22 @@ ALLOWED_EXTENSIONS = {
     ".pdf": FileType.PDF,
     ".epub": FileType.EPUB,
     ".txt": FileType.TXT,
+    ".docx": FileType.DOCX,
 }
 
 ALLOWED_MIME_TYPES = {
     FileType.PDF.value,
     FileType.EPUB.value,
     FileType.TXT.value,
+    FileType.DOCX.value,
     "application/octet-stream",  # Fallback for some browsers
 }
 
 # Magic bytes for file type detection
+# Note: ZIP-based formats (EPUB, DOCX) both start with PK\x03\x04
+# For these, we rely on file extension for disambiguation
 MAGIC_BYTES = {
     b"%PDF": FileType.PDF,
-    b"PK\x03\x04": FileType.EPUB,  # EPUB is a ZIP file
 }
 
 
@@ -115,14 +119,30 @@ class FileService:
         Detect content type from file content and filename.
 
         Uses magic bytes for reliable detection, falls back to extension.
+        For ZIP-based formats (EPUB, DOCX), relies on file extension.
         """
-        # Try magic bytes detection
+        # First check extension for ZIP-based formats (EPUB, DOCX)
+        ext = Path(filename).suffix.lower()
+        if ext in ALLOWED_EXTENSIONS:
+            file_type = ALLOWED_EXTENSIONS[ext]
+            # For ZIP-based formats, verify magic bytes
+            if file_type in (FileType.EPUB, FileType.DOCX):
+                if content.startswith(b"PK\x03\x04"):
+                    return file_type.value
+            # For PDF, verify magic bytes
+            elif file_type == FileType.PDF:
+                if content.startswith(b"%PDF"):
+                    return file_type.value
+            else:
+                # TXT and other formats
+                return file_type.value
+
+        # Try magic bytes detection for PDF
         for magic, file_type in MAGIC_BYTES.items():
             if content.startswith(magic):
                 return file_type.value
 
         # Fallback to extension-based detection
-        ext = Path(filename).suffix.lower()
         if ext in ALLOWED_EXTENSIONS:
             return ALLOWED_EXTENSIONS[ext].value
 
@@ -192,7 +212,7 @@ class FileService:
             return FileValidationResult(
                 is_valid=False,
                 error_message=f"File type '{detected_type}' is not allowed. "
-                             f"Allowed: PDF, EPUB, TXT",
+                             f"Allowed: PDF, EPUB, TXT, DOCX",
                 content_type=detected_type,
                 file_size=file_size,
             )

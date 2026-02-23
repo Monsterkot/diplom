@@ -114,3 +114,10 @@ class BookFileResponse(CamelCaseModel):
     file_name: str
     file_size: int
     content_type: str
+
+
+class BookHtmlResponse(CamelCaseModel):
+    """Response for book HTML preview endpoint with camelCase serialization."""
+
+    html: str
+    text: str

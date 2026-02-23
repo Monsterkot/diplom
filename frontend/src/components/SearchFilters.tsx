@@ -33,6 +33,7 @@ const CONTENT_TYPE_LABELS: Record<string, string> = {
   'application/pdf': 'PDF',
   'application/epub+zip': 'EPUB',
   'text/plain': 'TXT',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'DOCX',
 }
 
 // Filter section component

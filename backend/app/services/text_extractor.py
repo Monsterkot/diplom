@@ -12,6 +12,7 @@ from datetime import datetime, timedelta
 import fitz  # PyMuPDF
 from ebooklib import epub
 from bs4 import BeautifulSoup
+from docx import Document
 import aiofiles
 import json
 import os
@@ -91,8 +92,8 @@ class TextCache:
 
 class TextExtractor:
     """
-    Service for extracting text content from PDF and EPUB files.
-    Uses PyMuPDF for PDF and ebooklib for EPUB.
+    Service for extracting text content from PDF, EPUB, TXT, and DOCX files.
+    Uses PyMuPDF for PDF, ebooklib for EPUB, and python-docx for DOCX.
     """
 
     # Maximum text length to extract (for search indexing)
@@ -148,6 +149,8 @@ class TextExtractor:
             result = await self._extract_epub(content)
         elif content_type == "text/plain" or file_name.lower().endswith(".txt"):
             result = await self._extract_text_file(content)
+        elif content_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document" or file_name.lower().endswith(".docx"):
+            result = await self._extract_docx(content)
         else:
             raise TextExtractionError(f"Unsupported file type: {content_type}")
 
@@ -309,6 +312,68 @@ class TextExtractor:
 
         except Exception as e:
             raise TextExtractionError(f"Failed to extract text: {str(e)}")
+
+    async def _extract_docx(self, content: bytes) -> dict[str, Any]:
+        """Extract text from DOCX using python-docx."""
+        def _do_extraction() -> dict[str, Any]:
+            text_parts = []
+            metadata = {}
+
+            try:
+                doc = Document(io.BytesIO(content))
+
+                # Extract metadata from core properties
+                core_props = doc.core_properties
+                if core_props:
+                    metadata = {
+                        "title": core_props.title,
+                        "author": core_props.author,
+                        "subject": core_props.subject,
+                        "keywords": core_props.keywords,
+                        "category": core_props.category,
+                        "comments": core_props.comments,
+                        "created": core_props.created.isoformat() if core_props.created else None,
+                        "modified": core_props.modified.isoformat() if core_props.modified else None,
+                        "last_modified_by": core_props.last_modified_by,
+                        "revision": core_props.revision,
+                    }
+                    # Clean None values
+                    metadata = {k: v for k, v in metadata.items() if v}
+
+                # Extract text from paragraphs
+                for paragraph in doc.paragraphs:
+                    text = paragraph.text.strip()
+                    if text:
+                        text_parts.append(text)
+
+                # Extract text from tables
+                for table in doc.tables:
+                    for row in table.rows:
+                        row_text = []
+                        for cell in row.cells:
+                            cell_text = cell.text.strip()
+                            if cell_text:
+                                row_text.append(cell_text)
+                        if row_text:
+                            text_parts.append(" | ".join(row_text))
+
+                # Estimate page count (approx. 250-300 words per page)
+                word_count = sum(len(text.split()) for text in text_parts)
+                page_count = max(1, word_count // 275)
+
+                return {
+                    "text": "\n\n".join(text_parts),
+                    "page_count": page_count,
+                    "metadata": metadata,
+                    "extraction_method": "python-docx",
+                }
+
+            except Exception as e:
+                raise TextExtractionError(f"Failed to extract DOCX text: {str(e)}")
+
+        # Run in thread pool to avoid blocking
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(None, _do_extraction)
 
     async def get_text_preview(
         self,

@@ -17,10 +17,12 @@ from app.schemas.book import (
     BookResponse,
     BookUpdate,
     BookFileResponse,
+    BookHtmlResponse,
 )
 from app.services.auth import CurrentUser, DBSession, OptionalCurrentUser
 from app.services.file_service import file_service
 from app.services.search_service import get_search_service
+from app.services.docx_converter import get_docx_converter, ConversionError
 
 router = APIRouter()
 
@@ -84,7 +86,7 @@ async def upload_book(
     db: DBSession,
     current_user: CurrentUser,
     background_tasks: BackgroundTasks,
-    file: Annotated[UploadFile, File(description="Book file (PDF, EPUB, TXT)")],
+    file: Annotated[UploadFile, File(description="Book file (PDF, EPUB, TXT, DOCX)")],
     title: Annotated[str, Form()],
     author: Annotated[str | None, Form()] = None,
     description: Annotated[str | None, Form()] = None,
@@ -98,7 +100,7 @@ async def upload_book(
     Upload a new book.
 
     Accepts multipart/form-data with:
-    - **file**: Book file (PDF, EPUB, TXT)
+    - **file**: Book file (PDF, EPUB, TXT, DOCX)
     - **title**: Book title (required)
     - **author**: Book author
     - **description**: Book description
@@ -168,7 +170,10 @@ async def get_books(
     skip: Annotated[int, Query(ge=0)] = 0,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     category: str | None = None,
+    author: str | None = None,
     language: str | None = None,
+    year_from: Annotated[int | None, Query(ge=1000)] = None,
+    year_to: Annotated[int | None, Query(le=2100)] = None,
 ):
     """
     Get list of all books with pagination.
@@ -176,16 +181,22 @@ async def get_books(
     - **skip**: Number of records to skip (default: 0)
     - **limit**: Maximum number of records (default: 20, max: 100)
     - **category**: Filter by category
+    - **author**: Filter by author
     - **language**: Filter by language
+    - **year_from**: Filter by publication year (minimum)
+    - **year_to**: Filter by publication year (maximum)
     """
     # Get books with optional filters
-    if category or language:
+    if category or author or language or year_from or year_to:
         # Use search with empty query for filtering
         books, total = await book_crud.search(
             db,
             query="",
             category=category,
+            author=author,
             language=language,
+            year_from=year_from,
+            year_to=year_to,
             skip=skip,
             limit=limit,
         )
@@ -384,6 +395,68 @@ async def stream_book_file(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="File not found",
+        )
+
+
+@router.get("/{book_id}/file/html", response_model=BookHtmlResponse)
+async def get_book_html(
+    book_id: int,
+    db: DBSession,
+):
+    """
+    Get HTML version of DOCX file for preview.
+
+    Converts DOCX files to HTML using mammoth library.
+    Preserves formatting including headings, lists, tables, bold, and italic.
+
+    Returns HTML and plain text extracted from the document.
+    Only supports DOCX files.
+    """
+    book = await book_crud.get(db, id=book_id)
+    if not book:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Book not found",
+        )
+
+    # Check if file is DOCX
+    is_docx = (
+        book.content_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        or (book.file_name and book.file_name.lower().endswith(".docx"))
+    )
+
+    if not is_docx:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"HTML preview is only available for DOCX files. Got: {book.content_type}",
+        )
+
+    try:
+        # Download file from MinIO
+        file_content, content_type = await file_service.download_file(book.file_path)
+        logger.info(f"Downloaded file for book {book_id}: {len(file_content)} bytes, {content_type}")
+
+        # Convert to HTML
+        converter = get_docx_converter()
+        result = await converter.convert_to_html(file_content)
+        logger.info(f"Converted DOCX to HTML for book {book_id}: {len(result['html'])} chars")
+
+        return BookHtmlResponse(
+            html=result["html"],
+            text=result["text"],
+        )
+
+    except ConversionError as e:
+        logger.error(f"Failed to convert DOCX to HTML for book {book_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to convert document to HTML",
+        )
+    except Exception as e:
+        logger.error(f"Error getting HTML for book {book_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to process document",
         )
 
 

@@ -48,6 +48,8 @@ flower==2.0.1
 python-magic==0.4.27
 PyPDF2==3.0.1
 chardet==5.2.0
+python-docx==1.1.0
+mammoth==1.7.1
 
 # Text extraction for search indexing
 PyMuPDF==1.23.21

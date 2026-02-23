@@ -1,34 +1,41 @@
 import { BookOpen, FileText, AlertCircle, Download } from 'lucide-react'
 import PdfViewer from './PdfViewer'
 import EpubViewer from './EpubViewer'
+import DocxViewer from './DocxViewer'
 
 interface ReaderProps {
   url: string
+  bookId?: number
   title?: string
   contentType: string
   fileName?: string
   onDownload?: () => void
 }
 
-type FileType = 'pdf' | 'epub' | 'txt' | 'unknown'
+type FileType = 'pdf' | 'epub' | 'txt' | 'docx' | 'unknown'
 
-function Reader({ url, title, contentType, fileName, onDownload }: ReaderProps) {
+function Reader({ url, bookId, title, contentType, fileName, onDownload }: ReaderProps) {
   const getFileType = (): FileType => {
     // Check content type first
     if (contentType === 'application/pdf') return 'pdf'
     if (contentType === 'application/epub+zip') return 'epub'
     if (contentType === 'text/plain') return 'txt'
+    if (contentType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') return 'docx'
 
     // Fallback to file extension
     const ext = fileName?.split('.').pop()?.toLowerCase()
     if (ext === 'pdf') return 'pdf'
     if (ext === 'epub') return 'epub'
     if (ext === 'txt') return 'txt'
+    if (ext === 'docx') return 'docx'
 
     return 'unknown'
   }
 
   const fileType = getFileType()
+  
+  // Debug log
+  console.log('Reader props:', { url, bookId, contentType, fileName, fileType })
 
   // PDF Viewer
   if (fileType === 'pdf') {
@@ -38,6 +45,23 @@ function Reader({ url, title, contentType, fileName, onDownload }: ReaderProps) 
   // EPUB Viewer
   if (fileType === 'epub') {
     return <EpubViewer url={url} title={title} />
+  }
+
+  // DOCX Viewer - HTML preview
+  if (fileType === 'docx') {
+    console.log('DOCX detected, bookId:', bookId)
+    if (!bookId) {
+      // Fallback: try to extract book ID from URL
+      const bookIdMatch = url.match(/\/books\/(\d+)/)
+      bookId = bookIdMatch ? parseInt(bookIdMatch[1], 10) : undefined
+      console.log('Extracted bookId from URL:', bookId)
+    }
+    if (bookId) {
+      console.log('Rendering DocxViewer with bookId:', bookId)
+      return <DocxViewer url={url} bookId={bookId} title={title} onDownload={onDownload} />
+    }
+    console.log('No bookId available, showing fallback')
+    // Fallback to download prompt if bookId not available
   }
 
   // TXT Viewer (use iframe)
@@ -103,6 +127,9 @@ export function FileTypeInfo({ contentType, fileName }: { contentType: string; f
     }
     if (contentType === 'text/plain' || fileName?.endsWith('.txt')) {
       return { icon: FileText, label: 'Text File', color: 'text-gray-500' }
+    }
+    if (contentType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || fileName?.endsWith('.docx')) {
+      return { icon: FileText, label: 'Word Document', color: 'text-blue-500' }
     }
     return { icon: FileText, label: 'Document', color: 'text-gray-400' }
   }
