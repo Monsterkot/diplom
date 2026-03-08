@@ -41,26 +41,48 @@ export const getBookDownloadUrl = (bookId: number): string => {
 }
 
 // Download file as blob and trigger browser download
+// Uses a separate approach to avoid blocking preview loading
 export const downloadBookFile = async (bookId: number, fileName: string): Promise<void> => {
   const url = getBookDownloadUrl(bookId)
 
-  const response = await fetch(url)
-  if (!response.ok) {
-    throw new Error('Failed to download file')
+  try {
+    // Создаем XMLHttpRequest с приоритетом background
+    // Это позволяет не блокировать другие запросы
+    const xhr = new XMLHttpRequest()
+    xhr.open('GET', url, true)
+    xhr.responseType = 'blob'
+    
+    // Ждём завершения загрузки
+    await new Promise<void>((resolve, reject) => {
+      xhr.onload = () => {
+        if (xhr.status === 200) {
+          resolve()
+        } else {
+          reject(new Error(`Download failed with status ${xhr.status}`))
+        }
+      }
+      xhr.onerror = () => reject(new Error('Network error'))
+      xhr.onabort = () => reject(new Error('Download aborted'))
+      xhr.send()
+    })
+    
+    // Получаем blob и скачиваем
+    const blob = xhr.response
+    const blobUrl = window.URL.createObjectURL(blob)
+    
+    const link = document.createElement('a')
+    link.href = blobUrl
+    link.download = fileName
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    
+    // Очищаем blob URL
+    window.URL.revokeObjectURL(blobUrl)
+  } catch (error) {
+    console.error('Download error:', error)
+    throw error
   }
-
-  const blob = await response.blob()
-  const blobUrl = window.URL.createObjectURL(blob)
-
-  const link = document.createElement('a')
-  link.href = blobUrl
-  link.download = fileName
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-
-  // Clean up blob URL
-  window.URL.revokeObjectURL(blobUrl)
 }
 
 // Create axios instance
