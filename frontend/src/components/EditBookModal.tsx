@@ -35,7 +35,7 @@ const LANGUAGES = [
   { value: 'it', label: 'Italiano' },
 ]
 
-function EditBookModal({ book, isOpen, onClose }: EditBookModalProps) {
+function EditBookModal({ book, isOpen, onClose, onBookUpdated }: EditBookModalProps) {
   const queryClient = useQueryClient()
   const [formData, setFormData] = useState<BookUpdate>({
     title: '',
