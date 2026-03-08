@@ -40,49 +40,22 @@ export const getBookDownloadUrl = (bookId: number): string => {
   return `${API_URL}/api/books/${bookId}/file/stream?download=true`
 }
 
-// Download file as blob and trigger browser download
-// Uses a separate approach to avoid blocking preview loading
-export const downloadBookFile = async (bookId: number, fileName: string): Promise<void> => {
+// Download file by opening in new window/tab
+// This approach doesn't block other requests as it uses a separate browser context
+export const downloadBookFile = (bookId: number, fileName: string): void => {
   const url = getBookDownloadUrl(bookId)
-
-  try {
-    // Создаем XMLHttpRequest с приоритетом background
-    // Это позволяет не блокировать другие запросы
-    const xhr = new XMLHttpRequest()
-    xhr.open('GET', url, true)
-    xhr.responseType = 'blob'
-    
-    // Ждём завершения загрузки
-    await new Promise<void>((resolve, reject) => {
-      xhr.onload = () => {
-        if (xhr.status === 200) {
-          resolve()
-        } else {
-          reject(new Error(`Download failed with status ${xhr.status}`))
-        }
-      }
-      xhr.onerror = () => reject(new Error('Network error'))
-      xhr.onabort = () => reject(new Error('Download aborted'))
-      xhr.send()
-    })
-    
-    // Получаем blob и скачиваем
-    const blob = xhr.response
-    const blobUrl = window.URL.createObjectURL(blob)
-    
-    const link = document.createElement('a')
-    link.href = blobUrl
-    link.download = fileName
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    
-    // Очищаем blob URL
-    window.URL.revokeObjectURL(blobUrl)
-  } catch (error) {
-    console.error('Download error:', error)
-    throw error
-  }
+  
+  // Создаем невидимый iframe для скачивания
+  // Это работает в отдельном контексте и не блокирует основные запросы
+  const iframe = document.createElement('iframe')
+  iframe.style.display = 'none'
+  iframe.src = url
+  document.body.appendChild(iframe)
+  
+  // Удаляем iframe через 5 минут
+  setTimeout(() => {
+    document.body.removeChild(iframe)
+  }, 300000)
 }
 
 // Create axios instance

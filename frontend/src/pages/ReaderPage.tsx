@@ -64,12 +64,11 @@ function ReaderPage() {
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
   }
 
-  const handleDownload = useCallback(async () => {
+  const handleDownload = useCallback(() => {
     if (bookId && book?.fileName) {
       try {
-        // Используем отдельную функцию для скачивания через blob
-        // Это не прерывает предпросмотр, так как используется другой механизм
-        await downloadBookFile(parseInt(bookId), book.fileName)
+        // Используем iframe для скачивания - это не блокирует предпросмотр
+        downloadBookFile(parseInt(bookId), book.fileName)
       } catch (error) {
         console.error('Download error:', error)
       }
