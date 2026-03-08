@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { BookOpen, User, Calendar, Tag, Trash2, X, Loader2, Edit2 } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { BookOpen, Download, User, Calendar, Tag, Trash2, X, Loader2, Edit2 } from 'lucide-react'
+import { getBookDownloadUrl } from '../services/api'
 import type { Book, ViewMode } from '../types'
 
 interface BookCardProps {
@@ -12,7 +13,6 @@ interface BookCardProps {
 }
 
 function BookCard({ book, viewMode = 'grid', onDelete, onEdit, isDeleting }: BookCardProps) {
-  const navigate = useNavigate()
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   const handleDelete = async () => {
@@ -41,10 +41,7 @@ function BookCard({ book, viewMode = 'grid', onDelete, onEdit, isDeleting }: Boo
 
   if (viewMode === 'list') {
     return (
-      <div
-        className="flex items-center p-4 bg-white rounded-lg border hover:shadow-md transition-shadow gap-4 cursor-pointer"
-        onClick={() => navigate(`/reader/${book.id}`)}
-      >
+      <div className="flex items-center p-4 bg-white rounded-lg border hover:shadow-md transition-shadow gap-4">
         {/* Cover */}
         <div className="w-20 h-28 flex-shrink-0 rounded overflow-hidden bg-gray-100">
           {book.coverUrl ? (
@@ -118,22 +115,32 @@ function BookCard({ book, viewMode = 'grid', onDelete, onEdit, isDeleting }: Boo
 
         {/* Actions */}
         <div className="flex-shrink-0 flex flex-col gap-2">
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              onEdit?.(book)
-            }}
-            className="px-4 py-2 border border-blue-300 text-blue-600 text-sm font-medium rounded-lg hover:bg-blue-50 transition-colors flex items-center justify-center"
+          <Link
+            to={`/reader/${book.id}`}
+            className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors text-center"
           >
-            <Edit2 className="h-4 w-4 mr-1" />
-            Редактировать
-          </button>
+            Читать
+          </Link>
+          <a
+            href={getBookDownloadUrl(book.id)}
+            download={book.fileName || 'download'}
+            className="px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center"
+          >
+            <Download className="h-4 w-4 mr-1" />
+            Скачать
+          </a>
+          {onEdit && (
+            <button
+              onClick={() => onEdit(book)}
+              className="px-4 py-2 border border-blue-300 text-blue-600 text-sm font-medium rounded-lg hover:bg-blue-50 transition-colors flex items-center justify-center"
+            >
+              <Edit2 className="h-4 w-4 mr-1" />
+              Редактировать
+            </button>
+          )}
           {onDelete && (
             <button
-              onClick={(e) => {
-                e.stopPropagation()
-                setShowDeleteConfirm(true)
-              }}
+              onClick={() => setShowDeleteConfirm(true)}
               disabled={isDeleting}
               className="px-4 py-2 border border-red-300 text-red-600 text-sm font-medium rounded-lg hover:bg-red-50 transition-colors flex items-center justify-center disabled:opacity-50"
             >
@@ -149,7 +156,7 @@ function BookCard({ book, viewMode = 'grid', onDelete, onEdit, isDeleting }: Boo
             <div className="bg-white rounded-lg shadow-xl max-w-sm w-full p-5">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-base font-semibold text-gray-900">Удалить книгу?</h3>
-                <button onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(false); }} className="p-1 hover:bg-gray-100 rounded">
+                <button onClick={() => setShowDeleteConfirm(false)} className="p-1 hover:bg-gray-100 rounded">
                   <X className="h-4 w-4 text-gray-500" />
                 </button>
               </div>
@@ -158,14 +165,14 @@ function BookCard({ book, viewMode = 'grid', onDelete, onEdit, isDeleting }: Boo
               </p>
               <div className="flex justify-end gap-2">
                 <button
-                  onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(false); }}
+                  onClick={() => setShowDeleteConfirm(false)}
                   disabled={isDeleting}
                   className="px-3 py-1.5 text-sm border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50"
                 >
                   Отмена
                 </button>
                 <button
-                  onClick={(e) => { e.stopPropagation(); handleDelete(); }}
+                  onClick={handleDelete}
                   disabled={isDeleting}
                   className="px-3 py-1.5 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center gap-1"
                 >
