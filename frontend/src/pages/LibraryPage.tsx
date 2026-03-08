@@ -4,7 +4,7 @@ import { Grid, List, Filter, X, ChevronDown, Upload } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import BookList from '../components/BookList'
 import { booksApi, searchApi, getErrorMessage } from '../services/api'
-import type { Book, ViewMode, FilterState, Category } from '../types'
+import type { Book, ViewMode, FilterState } from '../types'
 
 const ITEMS_PER_PAGE = 20
 
@@ -236,9 +236,9 @@ function LibraryPage() {
                 className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="">Все категории</option>
-                {categories?.map((cat: Category) => (
-                  <option key={cat.name} value={cat.name}>
-                    {cat.name} ({cat.count})
+                {categories?.map((cat: string) => (
+                  <option key={cat} value={cat}>
+                    {cat}
                   </option>
                 ))}
               </select>
