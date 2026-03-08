@@ -155,7 +155,7 @@ function LibraryPage() {
   }, [tempFilters, updateParams])
 
   // Сброс всех фильтров
-  const clearFilters = () => {
+  const clearFilters = useCallback(() => {
     const newFilters = {
       category: null,
       author: null,
@@ -170,7 +170,7 @@ function LibraryPage() {
       newParams.set('q', searchQuery)
     }
     setSearchParams(newParams)
-  }
+  }, [searchQuery, updateParams])
 
   const hasActiveFilters = Object.values(filters).some((v) => v !== null)
 
@@ -339,36 +339,42 @@ function LibraryPage() {
       {hasActiveFilters && !showFilters && (
         <div className="flex flex-wrap gap-2">
           {filters.category && (
-            <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm">
+            <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm cursor-pointer hover:bg-blue-200 transition-colors">
               Категория: {filters.category}
-              <button onClick={() => {
-                setTempFilters(prev => ({ ...prev, category: null }))
-                handleFilterChange('category', null)
-              }}>
+              <button
+                onClick={() => {
+                  setTempFilters(prev => ({ ...prev, category: null }))
+                  setTimeout(() => applyFilters(), 0)
+                }}
+                className="hover:text-blue-900"
+              >
                 <X className="h-3 w-3" />
               </button>
             </span>
           )}
           {filters.language && (
-            <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm">
+            <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm cursor-pointer hover:bg-blue-200 transition-colors">
               Язык: {filters.language}
-              <button onClick={() => {
-                setTempFilters(prev => ({ ...prev, language: null }))
-                handleFilterChange('language', null)
-              }}>
+              <button
+                onClick={() => {
+                  setTempFilters(prev => ({ ...prev, language: null }))
+                  setTimeout(() => applyFilters(), 0)
+                }}
+                className="hover:text-blue-900"
+              >
                 <X className="h-3 w-3" />
               </button>
             </span>
           )}
           {(filters.yearFrom || filters.yearTo) && (
-            <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm">
+            <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm cursor-pointer hover:bg-blue-200 transition-colors">
               Год: {filters.yearFrom || '...'} - {filters.yearTo || '...'}
               <button
                 onClick={() => {
                   setTempFilters(prev => ({ ...prev, yearFrom: null, yearTo: null }))
-                  handleFilterChange('yearFrom', null)
-                  handleFilterChange('yearTo', null)
+                  setTimeout(() => applyFilters(), 0)
                 }}
+                className="hover:text-blue-900"
               >
                 <X className="h-3 w-3" />
               </button>
