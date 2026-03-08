@@ -178,13 +178,19 @@ export const booksApi = {
     const formData = new FormData()
     formData.append('file', file)
 
-    // Append metadata fields
+    // Helper to convert camelCase to snake_case
+    const toSnakeCase = (key: string): string => {
+      return key.replace(/([A-Z])/g, '_$1').toLowerCase()
+    }
+
+    // Append metadata fields with snake_case conversion
     Object.entries(metadata).forEach(([key, value]) => {
       if (value !== undefined && value !== null) {
+        const snakeKey = toSnakeCase(key)
         if (Array.isArray(value)) {
-          value.forEach((v) => formData.append(key, v))
+          value.forEach((v) => formData.append(snakeKey, String(v)))
         } else {
-          formData.append(key, String(value))
+          formData.append(snakeKey, String(value))
         }
       }
     })
@@ -202,8 +208,21 @@ export const booksApi = {
     })
   },
 
-  update: (id: number, data: Partial<BookCreate>): Promise<AxiosResponse<Book>> =>
-    api.patch(`/api/books/${id}`, data),
+  update: (id: number, data: Partial<BookCreate>): Promise<AxiosResponse<Book>> => {
+    // Convert camelCase to snake_case for backend
+    const toSnakeCase = (key: string): string => {
+      return key.replace(/([A-Z])/g, '_$1').toLowerCase()
+    }
+
+    const snakeCaseData: Record<string, any> = {}
+    Object.entries(data).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        snakeCaseData[toSnakeCase(key)] = value
+      }
+    })
+
+    return api.patch(`/api/books/${id}`, snakeCaseData)
+  },
 
   delete: (id: number): Promise<AxiosResponse<void>> =>
     api.delete(`/api/books/${id}`),
@@ -360,8 +379,21 @@ export const externalApi = {
     api.get(`/api/external/details/${source}/${encodeURIComponent(externalId)}`),
 
   // Import book
-  importBook: (data: ExternalBookImportRequest): Promise<AxiosResponse<ImportResult>> =>
-    api.post('/api/external/import', data),
+  importBook: (data: ExternalBookImportRequest): Promise<AxiosResponse<ImportResult>> => {
+    // Convert camelCase to snake_case for backend
+    const toSnakeCase = (key: string): string => {
+      return key.replace(/([A-Z])/g, '_$1').toLowerCase()
+    }
+
+    const snakeCaseData: Record<string, any> = {}
+    Object.entries(data).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        snakeCaseData[toSnakeCase(key)] = value
+      }
+    })
+
+    return api.post('/api/external/import', snakeCaseData)
+  },
 
   // Bulk import
   bulkImport: (
