@@ -343,8 +343,18 @@ function LibraryPage() {
               Категория: {filters.category}
               <button
                 onClick={() => {
-                  setTempFilters(prev => ({ ...prev, category: null }))
-                  setTimeout(() => applyFilters(), 0)
+                  const newTempFilters = { ...tempFilters, category: null }
+                  setTempFilters(newTempFilters)
+                  // Сразу применяем новые фильтры
+                  setFilters(newTempFilters)
+                  updateParams({
+                    category: null,
+                    author: newTempFilters.author,
+                    language: newTempFilters.language,
+                    yearFrom: newTempFilters.yearFrom?.toString() || null,
+                    yearTo: newTempFilters.yearTo?.toString() || null,
+                    skip: '0',
+                  })
                 }}
                 className="hover:text-blue-900"
               >
@@ -357,8 +367,18 @@ function LibraryPage() {
               Язык: {filters.language}
               <button
                 onClick={() => {
-                  setTempFilters(prev => ({ ...prev, language: null }))
-                  setTimeout(() => applyFilters(), 0)
+                  const newTempFilters = { ...tempFilters, language: null }
+                  setTempFilters(newTempFilters)
+                  // Сразу применяем новые фильтры
+                  setFilters(newTempFilters)
+                  updateParams({
+                    category: newTempFilters.category,
+                    author: newTempFilters.author,
+                    language: null,
+                    yearFrom: newTempFilters.yearFrom?.toString() || null,
+                    yearTo: newTempFilters.yearTo?.toString() || null,
+                    skip: '0',
+                  })
                 }}
                 className="hover:text-blue-900"
               >
@@ -371,8 +391,18 @@ function LibraryPage() {
               Год: {filters.yearFrom || '...'} - {filters.yearTo || '...'}
               <button
                 onClick={() => {
-                  setTempFilters(prev => ({ ...prev, yearFrom: null, yearTo: null }))
-                  setTimeout(() => applyFilters(), 0)
+                  const newTempFilters = { ...tempFilters, yearFrom: null, yearTo: null }
+                  setTempFilters(newTempFilters)
+                  // Сразу применяем новые фильтры
+                  setFilters(newTempFilters)
+                  updateParams({
+                    category: newTempFilters.category,
+                    author: newTempFilters.author,
+                    language: newTempFilters.language,
+                    yearFrom: null,
+                    yearTo: null,
+                    skip: '0',
+                  })
                 }}
                 className="hover:text-blue-900"
               >
