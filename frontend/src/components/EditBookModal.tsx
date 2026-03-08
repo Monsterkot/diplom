@@ -70,10 +70,12 @@ function EditBookModal({ book, isOpen, onClose }: EditBookModalProps) {
       const response = await booksApi.update(book.id, formData)
       return response.data
     },
-    onSuccess: () => {
-      // Invalidate queries to refresh the list
+    onSuccess: (updatedBook) => {
+      // Обновляем конкретную книгу в кэше
+      queryClient.setQueryData(['book', book.id], updatedBook)
+      // Инвалидируем список книг для обновления
       queryClient.invalidateQueries({ queryKey: ['books'] })
-      queryClient.invalidateQueries({ queryKey: ['book', book.id] })
+      // Закрываем модальное окно
       onClose()
     },
     onError: (error) => {
