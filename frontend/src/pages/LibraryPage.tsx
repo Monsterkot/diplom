@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
-import { Grid, List, Filter, X, ChevronDown, Upload } from 'lucide-react'
+import { Grid, List, Filter, ChevronDown, Upload, Check, X } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import BookList from '../components/BookList'
 import { booksApi, searchApi, getErrorMessage } from '../services/api'
@@ -14,7 +14,18 @@ function LibraryPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
   const [showFilters, setShowFilters] = useState(false)
   const [deletingBookId, setDeletingBookId] = useState<number | null>(null)
+  
+  // Активные фильтры (применённые)
   const [filters, setFilters] = useState<FilterState>({
+    category: null,
+    author: null,
+    language: null,
+    yearFrom: null,
+    yearTo: null,
+  })
+  
+  // Временные фильтры (редактируемые, ещё не применённые)
+  const [tempFilters, setTempFilters] = useState<FilterState>({
     category: null,
     author: null,
     language: null,
@@ -28,13 +39,15 @@ function LibraryPage() {
 
   // Initialize filters from URL
   useEffect(() => {
-    setFilters({
+    const newFilters = {
       category: searchParams.get('category'),
       author: searchParams.get('author'),
       language: searchParams.get('language'),
       yearFrom: searchParams.get('yearFrom') ? parseInt(searchParams.get('yearFrom')!) : null,
       yearTo: searchParams.get('yearTo') ? parseInt(searchParams.get('yearTo')!) : null,
-    })
+    }
+    setFilters(newFilters)
+    setTempFilters(newFilters)
   }, [])
 
   // Fetch books
@@ -123,23 +136,35 @@ function LibraryPage() {
     updateParams({ skip: newSkip.toString() })
   }
 
-  const handleFilterChange = (key: keyof FilterState, value: string | number | null) => {
-    const newFilters = { ...filters, [key]: value }
-    setFilters(newFilters)
-    updateParams({
-      [key]: value?.toString() || null,
-      skip: '0', // Reset to first page on filter change
-    })
+  // Изменение временных фильтров (в UI)
+  const handleTempFilterChange = (key: keyof FilterState, value: string | number | null) => {
+    setTempFilters(prev => ({ ...prev, [key]: value }))
   }
 
+  // Применение фильтров по кнопке
+  const applyFilters = useCallback(() => {
+    setFilters(tempFilters)
+    updateParams({
+      category: tempFilters.category,
+      author: tempFilters.author,
+      language: tempFilters.language,
+      yearFrom: tempFilters.yearFrom?.toString() || null,
+      yearTo: tempFilters.yearTo?.toString() || null,
+      skip: '0', // Reset to first page on filter apply
+    })
+  }, [tempFilters, updateParams])
+
+  // Сброс всех фильтров
   const clearFilters = () => {
-    setFilters({
+    const newFilters = {
       category: null,
       author: null,
       language: null,
       yearFrom: null,
       yearTo: null,
-    })
+    }
+    setFilters(newFilters)
+    setTempFilters(newFilters)
     const newParams = new URLSearchParams()
     if (searchQuery) {
       newParams.set('q', searchQuery)
@@ -213,15 +238,24 @@ function LibraryPage() {
         <div className="bg-white rounded-lg border p-4 space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="font-medium text-gray-900">Фильтры</h3>
-            {hasActiveFilters && (
+            <div className="flex items-center gap-2">
+              {hasActiveFilters && (
+                <button
+                  onClick={clearFilters}
+                  className="text-sm text-gray-600 hover:text-gray-700 flex items-center gap-1"
+                >
+                  <X className="h-4 w-4" />
+                  Сбросить
+                </button>
+              )}
               <button
-                onClick={clearFilters}
-                className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                onClick={applyFilters}
+                className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
               >
-                <X className="h-4 w-4" />
-                Сбросить
+                <Check className="h-4 w-4" />
+                Применить
               </button>
-            )}
+            </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -231,8 +265,8 @@ function LibraryPage() {
                 Категория
               </label>
               <select
-                value={filters.category || ''}
-                onChange={(e) => handleFilterChange('category', e.target.value || null)}
+                value={tempFilters.category || ''}
+                onChange={(e) => handleTempFilterChange('category', e.target.value || null)}
                 className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="">Все категории</option>
@@ -250,8 +284,8 @@ function LibraryPage() {
                 Язык
               </label>
               <select
-                value={filters.language || ''}
-                onChange={(e) => handleFilterChange('language', e.target.value || null)}
+                value={tempFilters.language || ''}
+                onChange={(e) => handleTempFilterChange('language', e.target.value || null)}
                 className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="">Все языки</option>
@@ -269,9 +303,9 @@ function LibraryPage() {
               </label>
               <input
                 type="number"
-                value={filters.yearFrom || ''}
+                value={tempFilters.yearFrom || ''}
                 onChange={(e) =>
-                  handleFilterChange('yearFrom', e.target.value ? parseInt(e.target.value) : null)
+                  handleTempFilterChange('yearFrom', e.target.value ? parseInt(e.target.value) : null)
                 }
                 placeholder="1900"
                 min="1000"
@@ -287,9 +321,9 @@ function LibraryPage() {
               </label>
               <input
                 type="number"
-                value={filters.yearTo || ''}
+                value={tempFilters.yearTo || ''}
                 onChange={(e) =>
-                  handleFilterChange('yearTo', e.target.value ? parseInt(e.target.value) : null)
+                  handleTempFilterChange('yearTo', e.target.value ? parseInt(e.target.value) : null)
                 }
                 placeholder="2024"
                 min="1000"
@@ -307,7 +341,10 @@ function LibraryPage() {
           {filters.category && (
             <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm">
               Категория: {filters.category}
-              <button onClick={() => handleFilterChange('category', null)}>
+              <button onClick={() => {
+                setTempFilters(prev => ({ ...prev, category: null }))
+                handleFilterChange('category', null)
+              }}>
                 <X className="h-3 w-3" />
               </button>
             </span>
@@ -315,7 +352,10 @@ function LibraryPage() {
           {filters.language && (
             <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm">
               Язык: {filters.language}
-              <button onClick={() => handleFilterChange('language', null)}>
+              <button onClick={() => {
+                setTempFilters(prev => ({ ...prev, language: null }))
+                handleFilterChange('language', null)
+              }}>
                 <X className="h-3 w-3" />
               </button>
             </span>
@@ -325,6 +365,7 @@ function LibraryPage() {
               Год: {filters.yearFrom || '...'} - {filters.yearTo || '...'}
               <button
                 onClick={() => {
+                  setTempFilters(prev => ({ ...prev, yearFrom: null, yearTo: null }))
                   handleFilterChange('yearFrom', null)
                   handleFilterChange('yearTo', null)
                 }}
