@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { BookOpen, User, Calendar, Tag, Trash2, X, Loader2, Edit2 } from 'lucide-react'
 import type { Book, ViewMode } from '../types'
 
@@ -11,6 +12,7 @@ interface BookCardProps {
 }
 
 function BookCard({ book, viewMode = 'grid', onDelete, onEdit, isDeleting }: BookCardProps) {
+  const navigate = useNavigate()
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   const handleDelete = async () => {
@@ -39,9 +41,9 @@ function BookCard({ book, viewMode = 'grid', onDelete, onEdit, isDeleting }: Boo
 
   if (viewMode === 'list') {
     return (
-      <div 
+      <div
         className="flex items-center p-4 bg-white rounded-lg border hover:shadow-md transition-shadow gap-4 cursor-pointer"
-        onClick={() => window.location.href = `/reader/${book.id}`}
+        onClick={() => navigate(`/reader/${book.id}`)}
       >
         {/* Cover */}
         <div className="w-20 h-28 flex-shrink-0 rounded overflow-hidden bg-gray-100">
