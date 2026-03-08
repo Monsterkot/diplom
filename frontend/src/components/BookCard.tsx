@@ -40,7 +40,7 @@ function BookCard({ book, viewMode = 'grid', onDelete, isDeleting }: BookCardPro
 
   if (viewMode === 'list') {
     return (
-      <div className="flex items-center p-4 bg-white rounded-lg border hover:shadow-md transition-shadow">
+      <div className="flex items-center p-4 bg-white rounded-lg border hover:shadow-md transition-shadow gap-4">
         {/* Cover */}
         <div className="w-20 h-28 flex-shrink-0 rounded overflow-hidden bg-gray-100">
           {book.coverUrl ? (
@@ -57,9 +57,9 @@ function BookCard({ book, viewMode = 'grid', onDelete, isDeleting }: BookCardPro
         </div>
 
         {/* Info */}
-        <div className="ml-4 flex-grow min-w-0">
+        <div className="flex-grow min-w-0">
           <div className="flex items-start justify-between">
-            <div className="min-w-0">
+            <div className="min-w-0 flex-grow">
               <h3 className="font-medium text-gray-900 truncate">{book.title}</h3>
               {book.author && (
                 <p className="text-sm text-gray-600 flex items-center mt-1">
@@ -77,18 +77,34 @@ function BookCard({ book, viewMode = 'grid', onDelete, isDeleting }: BookCardPro
             <p className="text-sm text-gray-500 mt-2 line-clamp-2">{book.description}</p>
           )}
 
-          <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+          <div className="flex flex-wrap items-center gap-3 mt-2 text-xs text-gray-500">
             {book.category && (
-              <span className="flex items-center">
-                <Tag className="h-3 w-3 mr-1" />
+              <span className="flex items-center gap-1">
+                <Tag className="h-3 w-3" />
                 {book.category}
               </span>
             )}
+            {book.language && (
+              <span className="uppercase bg-blue-50 text-blue-600 px-2 py-0.5 rounded">
+                {book.language}
+              </span>
+            )}
+            {book.publisher && (
+              <span className="flex items-center gap-1">
+                <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+                {book.publisher}
+              </span>
+            )}
             {book.publishedYear && (
-              <span className="flex items-center">
-                <Calendar className="h-3 w-3 mr-1" />
+              <span className="flex items-center gap-1">
+                <Calendar className="h-3 w-3" />
                 {book.publishedYear}
               </span>
+            )}
+            {book.isbn && (
+              <span className="font-mono">ISBN: {book.isbn}</span>
             )}
             {book.fileSize && (
               <span>{formatFileSize(book.fileSize)}</span>
@@ -97,7 +113,7 @@ function BookCard({ book, viewMode = 'grid', onDelete, isDeleting }: BookCardPro
         </div>
 
         {/* Actions */}
-        <div className="ml-4 flex-shrink-0 flex flex-col gap-2">
+        <div className="flex-shrink-0 flex flex-col gap-2">
           <Link
             to={`/reader/${book.id}`}
             className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors text-center"
@@ -163,7 +179,7 @@ function BookCard({ book, viewMode = 'grid', onDelete, isDeleting }: BookCardPro
 
   // Grid view
   return (
-    <div className="bg-white rounded-lg border overflow-hidden hover:shadow-md transition-shadow group">
+    <div className="bg-white rounded-lg border overflow-hidden hover:shadow-md transition-shadow group flex flex-col">
       {/* Cover */}
       <Link to={`/reader/${book.id}`} className="block aspect-[3/4] relative overflow-hidden bg-gray-100">
         {book.coverUrl ? (
@@ -193,19 +209,52 @@ function BookCard({ book, viewMode = 'grid', onDelete, isDeleting }: BookCardPro
       </Link>
 
       {/* Info */}
-      <div className="p-3">
+      <div className="p-3 flex-grow flex flex-col">
         <Link to={`/reader/${book.id}`}>
-          <h3 className="font-medium text-gray-900 text-sm line-clamp-2 hover:text-blue-600 transition-colors">
+          <h3 className="font-medium text-gray-900 text-sm line-clamp-2 hover:text-blue-600 transition-colors min-h-[2.5rem]">
             {book.title}
           </h3>
         </Link>
+        
         {book.author && (
-          <p className="text-xs text-gray-600 mt-1 truncate">{book.author}</p>
+          <p className="text-xs text-gray-600 mt-1 truncate flex items-center gap-1">
+            <User className="h-3 w-3" />
+            {book.author}
+          </p>
         )}
-        {book.category && (
-          <span className="inline-block mt-2 text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">
-            {book.category}
-          </span>
+        
+        <div className="flex flex-wrap gap-1 mt-2">
+          {book.category && (
+            <span className="inline-block text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">
+              {book.category}
+            </span>
+          )}
+          {book.language && (
+            <span className="inline-block text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded uppercase">
+              {book.language}
+            </span>
+          )}
+        </div>
+        
+        {(book.publishedYear || book.fileSize) && (
+          <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
+            {book.publishedYear && (
+              <span className="flex items-center gap-1">
+                <Calendar className="h-3 w-3" />
+                {book.publishedYear}
+              </span>
+            )}
+            {book.fileSize && (
+              <span>{formatFileSize(book.fileSize)}</span>
+            )}
+          </div>
+        )}
+        
+        {/* Description preview */}
+        {book.description && (
+          <p className="text-xs text-gray-500 mt-2 line-clamp-2 flex-grow">
+            {book.description}
+          </p>
         )}
       </div>
     </div>
