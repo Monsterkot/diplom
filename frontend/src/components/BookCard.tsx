@@ -266,6 +266,29 @@ function BookCard({ book, viewMode = 'grid', onDelete, onEdit, isDeleting }: Boo
             {book.description}
           </p>
         )}
+
+        {/* Action buttons */}
+        <div className="flex gap-2 mt-3 pt-3 border-t">
+          {onEdit && (
+            <button
+              onClick={() => onEdit(book)}
+              className="flex-1 flex items-center justify-center gap-1 px-3 py-2 border border-blue-300 text-blue-600 text-xs font-medium rounded-lg hover:bg-blue-50 transition-colors"
+            >
+              <Edit2 className="h-3 w-3" />
+              Редактировать
+            </button>
+          )}
+          {onDelete && (
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              disabled={isDeleting}
+              className="flex-1 flex items-center justify-center gap-1 px-3 py-2 border border-red-300 text-red-600 text-xs font-medium rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50"
+            >
+              <Trash2 className="h-3 w-3" />
+              Удалить
+            </button>
+          )}
+        </div>
       </div>
     </div>
   )
