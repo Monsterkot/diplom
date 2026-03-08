@@ -22,6 +22,7 @@ import type {
   ImportResult,
   SourcesListResponse,
 } from '../types'
+import { toSnakeCase, toSnakeCaseKeys, toSnakeCaseKeysDeep } from '../utils/caseConverter'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
@@ -120,8 +121,11 @@ api.interceptors.response.use(
 // ============ Auth API ============
 
 export const authApi = {
-  register: (data: UserCreate): Promise<AxiosResponse<User>> =>
-    api.post('/api/auth/register', data),
+  register: (data: UserCreate): Promise<AxiosResponse<User>> => {
+    // Convert camelCase to snake_case for backend (currently fields are snake_case, but this ensures future compatibility)
+    const snakeCaseData = toSnakeCaseKeys(data)
+    return api.post('/api/auth/register', snakeCaseData)
+  },
 
   login: (email: string, password: string): Promise<AxiosResponse<Token>> => {
     // FastAPI OAuth2 expects form data
@@ -167,8 +171,11 @@ export const booksApi = {
   getById: (id: number): Promise<AxiosResponse<Book>> =>
     api.get(`/api/books/${id}`),
 
-  create: (data: BookCreate): Promise<AxiosResponse<Book>> =>
-    api.post('/api/books', data),
+  create: (data: BookCreate): Promise<AxiosResponse<Book>> => {
+    // Convert camelCase to snake_case for backend
+    const snakeCaseData = toSnakeCaseKeys(data)
+    return api.post('/api/books', snakeCaseData)
+  },
 
   upload: (
     file: File,
@@ -177,11 +184,6 @@ export const booksApi = {
   ): Promise<AxiosResponse<Book>> => {
     const formData = new FormData()
     formData.append('file', file)
-
-    // Helper to convert camelCase to snake_case
-    const toSnakeCase = (key: string): string => {
-      return key.replace(/([A-Z])/g, '_$1').toLowerCase()
-    }
 
     // Append metadata fields with snake_case conversion
     Object.entries(metadata).forEach(([key, value]) => {
@@ -210,17 +212,7 @@ export const booksApi = {
 
   update: (id: number, data: Partial<BookCreate>): Promise<AxiosResponse<Book>> => {
     // Convert camelCase to snake_case for backend
-    const toSnakeCase = (key: string): string => {
-      return key.replace(/([A-Z])/g, '_$1').toLowerCase()
-    }
-
-    const snakeCaseData: Record<string, any> = {}
-    Object.entries(data).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) {
-        snakeCaseData[toSnakeCase(key)] = value
-      }
-    })
-
+    const snakeCaseData = toSnakeCaseKeys(data)
     return api.patch(`/api/books/${id}`, snakeCaseData)
   },
 
@@ -381,25 +373,18 @@ export const externalApi = {
   // Import book
   importBook: (data: ExternalBookImportRequest): Promise<AxiosResponse<ImportResult>> => {
     // Convert camelCase to snake_case for backend
-    const toSnakeCase = (key: string): string => {
-      return key.replace(/([A-Z])/g, '_$1').toLowerCase()
-    }
-
-    const snakeCaseData: Record<string, any> = {}
-    Object.entries(data).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) {
-        snakeCaseData[toSnakeCase(key)] = value
-      }
-    })
-
+    const snakeCaseData = toSnakeCaseKeys(data)
     return api.post('/api/external/import', snakeCaseData)
   },
 
   // Bulk import
   bulkImport: (
     items: ExternalBookImportRequest[]
-  ): Promise<AxiosResponse<{ total: number; successful: number; failed: number; results: ImportResult[] }>> =>
-    api.post('/api/external/import/bulk', { items }),
+  ): Promise<AxiosResponse<{ total: number; successful: number; failed: number; results: ImportResult[] }>> => {
+    // Convert camelCase to snake_case for each item in the array
+    const snakeCaseItems = items.map(item => toSnakeCaseKeys(item))
+    return api.post('/api/external/import/bulk', { items: snakeCaseItems })
+  },
 }
 
 // ============ Error helpers ============
