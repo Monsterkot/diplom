@@ -156,6 +156,11 @@ function ReaderPage() {
                 {book.category}
               </span>
             )}
+            {book.language && (
+              <span className="flex items-center gap-1 uppercase bg-blue-50 text-blue-600 px-2 py-0.5 rounded">
+                {book.language}
+              </span>
+            )}
             {book.publishedYear && (
               <span className="flex items-center gap-1">
                 <Calendar className="h-4 w-4" />
@@ -166,6 +171,11 @@ function ReaderPage() {
               <span className="flex items-center gap-1">
                 <Building className="h-4 w-4" />
                 {book.publisher}
+              </span>
+            )}
+            {book.isbn && (
+              <span className="flex items-center gap-1 font-mono">
+                ISBN: {book.isbn}
               </span>
             )}
             {book.fileSize && (
