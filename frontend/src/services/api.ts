@@ -165,8 +165,18 @@ export interface BooksQueryParams {
 }
 
 export const booksApi = {
-  getAll: (params?: BooksQueryParams): Promise<AxiosResponse<BookListResponse>> =>
-    api.get('/api/books', { params }),
+  getAll: (params?: BooksQueryParams): Promise<AxiosResponse<BookListResponse>> => {
+    // Convert camelCase to snake_case for query params
+    const snakeCaseParams: Record<string, unknown> = {}
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          snakeCaseParams[toSnakeCase(key)] = value
+        }
+      })
+    }
+    return api.get('/api/books', { params: snakeCaseParams })
+  },
 
   getById: (id: number): Promise<AxiosResponse<Book>> =>
     api.get(`/api/books/${id}`),
