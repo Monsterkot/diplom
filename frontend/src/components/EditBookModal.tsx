@@ -68,7 +68,20 @@ function EditBookModal({ book, isOpen, onClose, onBookUpdated }: EditBookModalPr
   const updateMutation = useMutation({
     mutationFn: async () => {
       if (!book.id) throw new Error('Book ID is required')
-      const response = await booksApi.update(book.id, formData)
+      
+      // Преобразуем пустые строки в undefined для необязательных полей
+      const updateData: BookUpdate = {
+        title: formData.title || undefined,
+        author: formData.author || undefined,
+        description: formData.description || undefined,
+        isbn: formData.isbn || undefined,
+        publisher: formData.publisher || undefined,
+        publishedYear: formData.publishedYear || undefined,
+        language: formData.language || undefined,
+        category: formData.category || undefined,
+      }
+      
+      const response = await booksApi.update(book.id, updateData)
       return response.data
     },
     onSuccess: (updatedBook) => {
@@ -98,6 +111,13 @@ function EditBookModal({ book, isOpen, onClose, onBookUpdated }: EditBookModalPr
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Проверка на наличие title
+    if (!formData.title || !formData.title.trim()) {
+      console.error('Title is required')
+      return
+    }
+    
     updateMutation.mutate()
   }
 
