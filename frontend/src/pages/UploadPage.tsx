@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { CheckCircle, AlertCircle, ArrowRight, BookOpen } from 'lucide-react'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import FileUploader from '../components/FileUploader'
 import { booksApi, getErrorMessage } from '../services/api'
 import type { BookCreate, UploadProgress } from '../types'
@@ -36,6 +36,7 @@ const LANGUAGES = [
 
 function UploadPage() {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const [step, setStep] = useState<'file' | 'metadata' | 'complete'>('file')
   const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null)
   const [formData, setFormData] = useState<FormData>({
@@ -449,7 +450,13 @@ function UploadPage() {
           Загрузить ещё
         </button>
         <button
-          onClick={() => navigate('/library')}
+          onClick={() => {
+            // Инвалидировать кэш библиотеки перед переходом
+            queryClient.invalidateQueries({ queryKey: ['books'] })
+            queryClient.invalidateQueries({ queryKey: ['categories'] })
+            // Перейти в библиотеку
+            navigate('/library')
+          }}
           className="flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
         >
           <BookOpen className="h-5 w-5" />
