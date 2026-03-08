@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
@@ -16,7 +16,7 @@ import {
   X,
 } from 'lucide-react'
 import { Reader, FileTypeInfo } from '../components'
-import { booksApi, getErrorMessage, getBookStreamUrl, getBookDownloadUrl } from '../services/api'
+import { booksApi, getErrorMessage, getBookStreamUrl, getBookDownloadUrl, downloadBookFile } from '../services/api'
 import type { Book } from '../types'
 
 function ReaderPage() {
@@ -64,18 +64,17 @@ function ReaderPage() {
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
   }
 
-  const handleDownload = () => {
-    if (bookId) {
-      const downloadUrl = getBookDownloadUrl(parseInt(bookId))
-      // Create temporary link and click it to trigger download
-      const link = document.createElement('a')
-      link.href = downloadUrl
-      link.download = book?.fileName || 'download'
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
+  const handleDownload = useCallback(async () => {
+    if (bookId && book?.fileName) {
+      try {
+        // Используем отдельную функцию для скачивания через blob
+        // Это не прерывает предпросмотр, так как используется другой механизм
+        await downloadBookFile(parseInt(bookId), book.fileName)
+      } catch (error) {
+        console.error('Download error:', error)
+      }
     }
-  }
+  }, [bookId, book?.fileName])
 
   // Loading state
   if (isLoading) {
