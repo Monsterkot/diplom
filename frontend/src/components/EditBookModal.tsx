@@ -8,6 +8,7 @@ interface EditBookModalProps {
   book: Book
   isOpen: boolean
   onClose: () => void
+  onBookUpdated?: (updatedBook: Book) => void
 }
 
 const CATEGORIES = [
@@ -75,6 +76,8 @@ function EditBookModal({ book, isOpen, onClose }: EditBookModalProps) {
       queryClient.setQueryData(['book', book.id], updatedBook)
       // Инвалидируем список книг для обновления
       queryClient.invalidateQueries({ queryKey: ['books'] })
+      // Вызываем callback если есть
+      onBookUpdated?.(updatedBook)
       // Закрываем модальное окно
       onClose()
     },

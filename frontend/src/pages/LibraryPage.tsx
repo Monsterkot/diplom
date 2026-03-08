@@ -440,6 +440,10 @@ function LibraryPage() {
           book={editingBook}
           isOpen={!!editingBook}
           onClose={() => setEditingBook(null)}
+          onBookUpdated={() => {
+            refetch()
+            setEditingBook(null)
+          }}
         />
       )}
     </div>

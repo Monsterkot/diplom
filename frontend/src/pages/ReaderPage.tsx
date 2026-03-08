@@ -32,6 +32,7 @@ function ReaderPage() {
     data: book,
     isLoading,
     error,
+    refetch,
   } = useQuery({
     queryKey: ['book', bookId],
     queryFn: async () => {
@@ -321,6 +322,7 @@ function ReaderPage() {
           book={book}
           isOpen={showEditModal}
           onClose={() => setShowEditModal(false)}
+          onBookUpdated={() => refetch()}
         />
       )}
     </div>
