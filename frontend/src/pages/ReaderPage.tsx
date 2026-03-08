@@ -14,8 +14,9 @@ import {
   FileText,
   Trash2,
   X,
+  Edit2,
 } from 'lucide-react'
-import { Reader, FileTypeInfo } from '../components'
+import { Reader, FileTypeInfo, EditBookModal } from '../components'
 import { booksApi, getErrorMessage, getBookStreamUrl, getBookDownloadUrl, downloadBookFile } from '../services/api'
 import type { Book } from '../types'
 
@@ -24,6 +25,7 @@ function ReaderPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
 
   // Fetch book data
   const {
@@ -213,6 +215,13 @@ function ReaderPage() {
               Скачать
             </button>
             <button
+              onClick={() => setShowEditModal(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 border border-blue-300 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
+            >
+              <Edit2 className="h-4 w-4" />
+              Редактировать
+            </button>
+            <button
               onClick={() => setShowDeleteModal(true)}
               className="inline-flex items-center gap-2 px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
             >
@@ -304,6 +313,15 @@ function ReaderPage() {
           <span className="text-sm text-gray-500">ISBN: </span>
           <span className="text-sm font-mono text-gray-700">{book.isbn}</span>
         </div>
+      )}
+
+      {/* Edit Book Modal */}
+      {book && showEditModal && (
+        <EditBookModal
+          book={book}
+          isOpen={showEditModal}
+          onClose={() => setShowEditModal(false)}
+        />
       )}
     </div>
   )

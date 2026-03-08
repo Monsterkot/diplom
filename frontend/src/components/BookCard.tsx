@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { BookOpen, Download, User, Calendar, Tag, Trash2, X, Loader2 } from 'lucide-react'
+import { BookOpen, Download, User, Calendar, Tag, Trash2, X, Loader2, Edit2 } from 'lucide-react'
 import { getBookDownloadUrl } from '../services/api'
 import type { Book, ViewMode } from '../types'
 
@@ -8,10 +8,11 @@ interface BookCardProps {
   book: Book
   viewMode?: ViewMode
   onDelete?: (bookId: number) => Promise<void>
+  onEdit?: (book: Book) => void
   isDeleting?: boolean
 }
 
-function BookCard({ book, viewMode = 'grid', onDelete, isDeleting }: BookCardProps) {
+function BookCard({ book, viewMode = 'grid', onDelete, onEdit, isDeleting }: BookCardProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   const handleDelete = async () => {
@@ -128,6 +129,15 @@ function BookCard({ book, viewMode = 'grid', onDelete, isDeleting }: BookCardPro
             <Download className="h-4 w-4 mr-1" />
             Скачать
           </a>
+          {onEdit && (
+            <button
+              onClick={() => onEdit(book)}
+              className="px-4 py-2 border border-blue-300 text-blue-600 text-sm font-medium rounded-lg hover:bg-blue-50 transition-colors flex items-center justify-center"
+            >
+              <Edit2 className="h-4 w-4 mr-1" />
+              Редактировать
+            </button>
+          )}
           {onDelete && (
             <button
               onClick={() => setShowDeleteConfirm(true)}

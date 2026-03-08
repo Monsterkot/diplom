@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
-import { Grid, List, Filter, ChevronDown, Upload, Check, X } from 'lucide-react'
+import { Grid, List, Filter, ChevronDown, Upload, Check, X, Edit2 } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import BookList from '../components/BookList'
+import EditBookModal from '../components/EditBookModal'
 import { booksApi, searchApi, getErrorMessage } from '../services/api'
 import type { Book, ViewMode, FilterState } from '../types'
 
@@ -14,6 +15,7 @@ function LibraryPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
   const [showFilters, setShowFilters] = useState(false)
   const [deletingBookId, setDeletingBookId] = useState<number | null>(null)
+  const [editingBook, setEditingBook] = useState<Book | null>(null)
   
   // Активные фильтры (применённые)
   const [filters, setFilters] = useState<FilterState>({
@@ -425,10 +427,20 @@ function LibraryPage() {
           error={error ? getErrorMessage(error) : null}
           onPageChange={handlePageChange}
           onDeleteBook={handleDeleteBook}
+          onEditBook={setEditingBook}
           deletingBookId={deletingBookId}
         />
       ) : (
         <EmptyState searchQuery={searchQuery} hasFilters={hasActiveFilters} onClearFilters={clearFilters} />
+      )}
+
+      {/* Edit Book Modal */}
+      {editingBook && (
+        <EditBookModal
+          book={editingBook}
+          isOpen={!!editingBook}
+          onClose={() => setEditingBook(null)}
+        />
       )}
     </div>
   )
