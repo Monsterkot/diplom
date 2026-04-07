@@ -125,6 +125,12 @@ function ExternalSearchPage() {
     })
   }
 
+  // Apply pagination on frontend
+  const startIndex = (currentPage - 1) * limit
+  const endIndex = startIndex + limit
+  const paginatedResults = allResults.slice(startIndex, endIndex)
+  const totalAvailable = allResults.length
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -246,9 +252,9 @@ function ExternalSearchPage() {
           </div>
 
           {/* Results grid */}
-          {allResults.length > 0 ? (
+          {paginatedResults.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {allResults.map((book) => (
+              {paginatedResults.map((book) => (
                 <ExternalBookCard
                   key={`${book.source}-${book.externalId}`}
                   book={book}
@@ -270,10 +276,10 @@ function ExternalSearchPage() {
           )}
 
           {/* Pagination */}
-          {searchData.totalItems > limit && (
+          {totalAvailable > limit && (
             <Pagination
               currentPage={currentPage}
-              totalItems={searchData.totalItems}
+              totalItems={totalAvailable}
               limit={limit}
               onPageChange={handlePageChange}
             />
