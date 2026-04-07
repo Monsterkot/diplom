@@ -42,7 +42,7 @@ function ExternalSearchPage() {
   const [selectedBook, setSelectedBook] = useState<ExternalBookSearchResult | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
-  const [limit, setLimit] = useState(20)
+  const limit = 20
 
   // Fetch available sources
   const { data: sourcesData } = useQuery({
@@ -59,7 +59,7 @@ function ExternalSearchPage() {
     isLoading: isSearching,
     error: searchError,
   } = useQuery({
-    queryKey: ['external-search', searchQuery, selectedSource, currentPage, limit],
+    queryKey: ['external-search', searchQuery, selectedSource, currentPage],
     queryFn: async () => {
       if (!searchQuery) return null
       const response = await externalApi.search({
@@ -97,11 +97,6 @@ function ExternalSearchPage() {
     setCurrentPage(page)
     // Scroll to top
     window.scrollTo({ top: 0, behavior: 'smooth' })
-  }
-
-  const handleLimitChange = (newLimit: number) => {
-    setLimit(newLimit)
-    setCurrentPage(1) // Reset to first page when limit changes
   }
 
   const handleBookClick = (book: ExternalBookSearchResult) => {
@@ -228,24 +223,12 @@ function ExternalSearchPage() {
       {/* Results */}
       {searchData && (
         <div className="space-y-4">
-          {/* Results summary and limit selector */}
+          {/* Results summary */}
           <div className="flex items-center justify-between">
             <p className="text-gray-600">
               Found <span className="font-semibold">{searchData.totalItems.toLocaleString()}</span> results
               {' '}in {searchData.totalSearchTimeMs}ms
             </p>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600">Показать:</span>
-              <select
-                value={limit}
-                onChange={(e) => handleLimitChange(Number(e.target.value))}
-                className="px-3 py-1.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value={20}>20</option>
-                <option value={50}>50</option>
-                <option value={100}>100</option>
-              </select>
-            </div>
           </div>
 
           {/* Results grid */}
