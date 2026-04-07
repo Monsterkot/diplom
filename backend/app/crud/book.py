@@ -58,6 +58,7 @@ class CRUDBook(CRUDBase[Book, BookCreate, BookUpdate]):
         category: str | None = None,
         author: str | None = None,
         language: str | None = None,
+        source: str | None = None,
         year_from: int | None = None,
         year_to: int | None = None,
         skip: int = 0,
@@ -84,6 +85,13 @@ class CRUDBook(CRUDBase[Book, BookCreate, BookUpdate]):
             conditions.append(Book.author.ilike(f"%{author}%"))
         if language:
             conditions.append(Book.language == language)
+        if source:
+            if source == "upload":
+                # Local books have file_path set
+                conditions.append(Book.file_path != "")
+            elif source == "external":
+                # Imported books have empty file_path
+                conditions.append(Book.file_path == "")
         if year_from:
             conditions.append(Book.published_year >= year_from)
         if year_to:

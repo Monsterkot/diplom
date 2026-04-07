@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
-import { Grid, List, Filter, ChevronDown, Upload, Check, X, Edit2 } from 'lucide-react'
+import { Grid, List, Filter, ChevronDown, Upload, Check, X, Edit2, BookOpen, Globe } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import BookList from '../components/BookList'
 import EditBookModal from '../components/EditBookModal'
@@ -9,6 +9,8 @@ import type { Book, ViewMode, FilterState } from '../types'
 
 const ITEMS_PER_PAGE = 20
 
+type BookSource = 'all' | 'my' | 'imported'
+
 function LibraryPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const queryClient = useQueryClient()
@@ -16,7 +18,8 @@ function LibraryPage() {
   const [showFilters, setShowFilters] = useState(false)
   const [deletingBookId, setDeletingBookId] = useState<number | null>(null)
   const [editingBook, setEditingBook] = useState<Book | null>(null)
-  
+  const [bookSource, setBookSource] = useState<BookSource>('my')
+
   // Активные фильтры (применённые)
   const [filters, setFilters] = useState<FilterState>({
     category: null,
@@ -59,7 +62,7 @@ function LibraryPage() {
     error,
     refetch,
   } = useQuery({
-    queryKey: ['books', searchQuery, skip, filters],
+    queryKey: ['books', searchQuery, skip, filters, bookSource],
     queryFn: async () => {
       if (searchQuery) {
         // Search mode
@@ -70,6 +73,7 @@ function LibraryPage() {
           language: filters.language || undefined,
           yearFrom: filters.yearFrom || undefined,
           yearTo: filters.yearTo || undefined,
+          source: bookSource === 'imported' ? 'external' : bookSource === 'my' ? 'upload' : undefined,
           skip,
           limit: ITEMS_PER_PAGE,
         })
@@ -84,6 +88,7 @@ function LibraryPage() {
           language: filters.language || undefined,
           yearFrom: filters.yearFrom || undefined,
           yearTo: filters.yearTo || undefined,
+          source: bookSource === 'imported' ? 'external' : bookSource === 'my' ? 'upload' : undefined,
         })
         return response.data
       }
@@ -192,6 +197,45 @@ function LibraryPage() {
         </div>
 
         <div className="flex items-center gap-3">
+          {/* Source Filter Toggle */}
+          <div className="flex border rounded-lg overflow-hidden">
+            <button
+              onClick={() => setBookSource('my')}
+              className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors ${
+                bookSource === 'my'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white text-gray-600 hover:bg-gray-50'
+              }`}
+              title="Мои книги"
+            >
+              <BookOpen className="h-4 w-4" />
+              Мои
+            </button>
+            <button
+              onClick={() => setBookSource('imported')}
+              className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors ${
+                bookSource === 'imported'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white text-gray-600 hover:bg-gray-50'
+              }`}
+              title="Импортированные"
+            >
+              <Globe className="h-4 w-4" />
+              Импортированные
+            </button>
+            <button
+              onClick={() => setBookSource('all')}
+              className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors ${
+                bookSource === 'all'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white text-gray-600 hover:bg-gray-50'
+              }`}
+              title="Все книги"
+            >
+              Все
+            </button>
+          </div>
+
           {/* View Mode Toggle */}
           <div className="flex border rounded-lg overflow-hidden">
             <button

@@ -172,6 +172,7 @@ async def get_books(
     category: str | None = None,
     author: str | None = None,
     language: str | None = None,
+    source: str | None = None,
     year_from: Annotated[int | None, Query(ge=1000)] = None,
     year_to: Annotated[int | None, Query(le=2100)] = None,
 ):
@@ -183,11 +184,12 @@ async def get_books(
     - **category**: Filter by category
     - **author**: Filter by author
     - **language**: Filter by language
+    - **source**: Filter by source ('upload', 'external')
     - **year_from**: Filter by publication year (minimum)
     - **year_to**: Filter by publication year (maximum)
     """
     # Get books with optional filters
-    if category or author or language or year_from or year_to:
+    if category or author or language or source or year_from or year_to:
         # Use search with empty query for filtering
         books, total = await book_crud.search(
             db,
@@ -195,6 +197,7 @@ async def get_books(
             category=category,
             author=author,
             language=language,
+            source=source,
             year_from=year_from,
             year_to=year_to,
             skip=skip,
