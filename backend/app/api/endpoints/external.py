@@ -9,6 +9,7 @@ from typing import Annotated
 
 from app.core.database import get_db
 from app.models.external_book import ExternalBook
+from app.models.book import Book
 from app.schemas.external_book import (
     ExternalSourceEnum,
     ExternalBookSearchResult,
@@ -433,6 +434,39 @@ async def import_external_book(
         await db.commit()
         await db.refresh(new_book)
         external_book_id = new_book.id
+
+    # Also create a record in the local books table so it appears in the library
+    # Check if already exists by external_id
+    local_book_stmt = select(Book).where(Book.title == (request.title or book_data.title)).where(
+        Book.uploaded_by_id == current_user.id
+    )
+    local_book_result = await db.execute(local_book_stmt)
+    local_book = local_book_result.scalar_one_or_none()
+
+    if not local_book:
+        # Extract authors list for the author field
+        authors_text = ", ".join(book_data.authors) if book_data.authors else None
+        # Extract categories
+        categories_text = ", ".join(book_data.categories) if book_data.categories else None
+
+        local_book = Book(
+            title=request.title or book_data.title,
+            author=authors_text,
+            description=request.description or book_data.description,
+            isbn=book_data.isbn_13 or book_data.isbn_10,
+            publisher=book_data.publisher,
+            published_year=published_year,
+            language=request.language or book_data.language,
+            category=categories_text,
+            file_path="",  # Empty for imported books
+            file_name="",  # Empty for imported books
+            file_size=0,
+            content_type="",  # Empty for imported books
+            uploaded_by_id=current_user.id,
+        )
+
+        db.add(local_book)
+        await db.commit()
 
     return ImportResult(
         external_id=request.external_id,
