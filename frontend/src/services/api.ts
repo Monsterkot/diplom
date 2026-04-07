@@ -349,6 +349,7 @@ export interface ExternalSearchParams {
   q: string
   source?: ExternalSource
   limit?: number
+  page?: number
 }
 
 export interface SingleSourceSearchParams {

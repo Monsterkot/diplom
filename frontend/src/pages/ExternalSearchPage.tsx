@@ -13,6 +13,8 @@ import {
   Library,
   Filter,
   X,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react'
 import { externalApi, getErrorMessage } from '../services/api'
 import type {
@@ -39,6 +41,8 @@ function ExternalSearchPage() {
   const [selectedSource, setSelectedSource] = useState<ExternalSource | 'all'>('all')
   const [selectedBook, setSelectedBook] = useState<ExternalBookSearchResult | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [limit, setLimit] = useState(20)
 
   // Fetch available sources
   const { data: sourcesData } = useQuery({
@@ -55,13 +59,14 @@ function ExternalSearchPage() {
     isLoading: isSearching,
     error: searchError,
   } = useQuery({
-    queryKey: ['external-search', searchQuery, selectedSource],
+    queryKey: ['external-search', searchQuery, selectedSource, currentPage, limit],
     queryFn: async () => {
       if (!searchQuery) return null
       const response = await externalApi.search({
         q: searchQuery,
         source: selectedSource === 'all' ? undefined : selectedSource,
-        limit: 20,
+        limit,
+        page: currentPage,
       })
       return response.data
     },
@@ -85,7 +90,19 @@ function ExternalSearchPage() {
   const handleSearch = useCallback((e: React.FormEvent) => {
     e.preventDefault()
     setSearchQuery(query.trim())
+    setCurrentPage(1) // Reset to first page on new search
   }, [query])
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page)
+    // Scroll to top
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const handleLimitChange = (newLimit: number) => {
+    setLimit(newLimit)
+    setCurrentPage(1) // Reset to first page when limit changes
+  }
 
   const handleBookClick = (book: ExternalBookSearchResult) => {
     setSelectedBook(book)
@@ -208,12 +225,24 @@ function ExternalSearchPage() {
       {/* Results */}
       {searchData && (
         <div className="space-y-4">
-          {/* Results summary */}
+          {/* Results summary and limit selector */}
           <div className="flex items-center justify-between">
             <p className="text-gray-600">
               Found <span className="font-semibold">{searchData.totalItems.toLocaleString()}</span> results
               {' '}in {searchData.totalSearchTimeMs}ms
             </p>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600">Показать:</span>
+              <select
+                value={limit}
+                onChange={(e) => handleLimitChange(Number(e.target.value))}
+                className="px-3 py-1.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </div>
           </div>
 
           {/* Results grid */}
@@ -238,6 +267,16 @@ function ExternalSearchPage() {
               <p className="text-gray-600">No results found for "{searchQuery}"</p>
               <p className="text-gray-500 text-sm mt-1">Try different keywords or check your spelling</p>
             </div>
+          )}
+
+          {/* Pagination */}
+          {searchData.totalItems > limit && (
+            <Pagination
+              currentPage={currentPage}
+              totalItems={searchData.totalItems}
+              limit={limit}
+              onPageChange={handlePageChange}
+            />
           )}
         </div>
       )}
@@ -366,6 +405,104 @@ function ExternalBookCard({ book, onViewDetails, onImport, isImporting }: Extern
         )}
       </div>
     </div>
+  )
+}
+
+// Pagination Component
+interface PaginationProps {
+  currentPage: number
+  totalItems: number
+  limit: number
+  onPageChange: (page: number) => void
+}
+
+function Pagination({ currentPage, totalItems, limit, onPageChange }: PaginationProps) {
+  const totalPages = Math.ceil(totalItems / limit)
+  
+  // Generate page numbers to display
+  const getPageNumbers = (): (number | 'ellipsis')[] => {
+    const pages: (number | 'ellipsis')[] = []
+    const maxVisible = 7 // Max pages to show including ellipses
+    
+    if (totalPages <= maxVisible) {
+      // Show all pages if total is small
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i)
+      }
+    } else {
+      // Always show first page
+      pages.push(1)
+      
+      if (currentPage > 3) {
+        pages.push('ellipsis')
+      }
+      
+      // Show pages around current
+      const start = Math.max(2, currentPage - 1)
+      const end = Math.min(totalPages - 1, currentPage + 1)
+      
+      for (let i = start; i <= end; i++) {
+        pages.push(i)
+      }
+      
+      if (currentPage < totalPages - 2) {
+        pages.push('ellipsis')
+      }
+      
+      // Always show last page
+      pages.push(totalPages)
+    }
+    
+    return pages
+  }
+  
+  const pages = getPageNumbers()
+  
+  return (
+    <nav className="flex items-center justify-center gap-1 py-4">
+      {/* Previous button */}
+      <button
+        onClick={() => onPageChange(currentPage - 1)}
+        disabled={currentPage === 1}
+        className="p-2 rounded-lg border hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+        aria-label="Предыдущая страница"
+      >
+        <ChevronLeft className="h-5 w-5" />
+      </button>
+      
+      {/* Page numbers */}
+      <div className="flex items-center gap-1">
+        {pages.map((page, index) =>
+          page === 'ellipsis' ? (
+            <span key={`ellipsis-${index}`} className="px-2 text-gray-400">
+              ...
+            </span>
+          ) : (
+            <button
+              key={page}
+              onClick={() => onPageChange(page)}
+              className={`min-w-[40px] h-10 px-3 rounded-lg text-sm font-medium transition-colors ${
+                page === currentPage
+                  ? 'bg-blue-600 text-white'
+                  : 'border hover:bg-gray-50 text-gray-700'
+              }`}
+            >
+              {page}
+            </button>
+          )
+        )}
+      </div>
+      
+      {/* Next button */}
+      <button
+        onClick={() => onPageChange(currentPage + 1)}
+        disabled={currentPage >= totalPages}
+        className="p-2 rounded-lg border hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+        aria-label="Следующая страница"
+      >
+        <ChevronRight className="h-5 w-5" />
+      </button>
+    </nav>
   )
 }
 

@@ -76,7 +76,8 @@ async def search_external_books(
     db: DBSession,
     q: str = Query(..., min_length=1, description="Search query"),
     source: ExternalSourceEnum | None = Query(None, description="Specific source to search"),
-    limit: int = Query(10, ge=1, le=40, description="Maximum results per source"),
+    limit: int = Query(20, ge=1, le=100, description="Maximum results per source"),
+    page: int = Query(1, ge=1, description="Page number"),
 ):
     """
     Search for books in external sources.
@@ -91,12 +92,16 @@ async def search_external_books(
     if source:
         sources = [ExternalSource(source.value)]
 
-    # Perform search
+    # Calculate offset for pagination
+    offset = (page - 1) * limit
+
+    # Perform search with pagination
     try:
         results = await service.search_all_sources(
             query=q,
             max_results_per_source=limit,
             sources=sources,
+            start_index=offset,
         )
     except ExternalAPIError as e:
         raise HTTPException(status_code=503, detail=str(e))

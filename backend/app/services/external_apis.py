@@ -540,6 +540,7 @@ class ExternalApisService:
         query: str,
         max_results_per_source: int = 10,
         sources: list[ExternalSource] | None = None,
+        start_index: int = 0,
     ) -> dict[ExternalSource, ExternalSearchResponse]:
         """
         Search books across multiple external sources.
@@ -548,6 +549,7 @@ class ExternalApisService:
             query: Search query
             max_results_per_source: Maximum results per source
             sources: List of sources to search (defaults to all)
+            start_index: Starting index for pagination
 
         Returns:
             Dictionary mapping source to search response
@@ -560,9 +562,12 @@ class ExternalApisService:
 
         for source in sources:
             if source == ExternalSource.GOOGLE_BOOKS:
-                tasks.append((source, self.search_google_books(query, max_results_per_source)))
+                tasks.append((source, self.search_google_books(query, max_results_per_source, start_index)))
             elif source == ExternalSource.OPEN_LIBRARY:
-                tasks.append((source, self.search_open_library(query, max_results_per_source)))
+                # Open Library uses page number, not offset
+                # Calculate page from offset (page = offset/limit + 1, but we use start_index as page directly)
+                open_library_page = (start_index // max_results_per_source) + 1 if max_results_per_source > 0 else 1
+                tasks.append((source, self.search_open_library(query, max_results_per_source, open_library_page)))
 
         # Execute searches concurrently
         for source, task in tasks:
