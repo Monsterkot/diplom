@@ -15,7 +15,6 @@ from app.models.external_book import ExternalBook
 from app.services.external_apis import (
     get_external_apis_service,
     ExternalAPIError,
-    ExternalSource,
 )
 
 logger = get_task_logger(__name__)
@@ -99,8 +98,6 @@ async def _import_book_async(
     # Fetch book details
     if source == "google_books":
         book_data = await service.get_google_book_details(external_id)
-    elif source == "open_library":
-        book_data = await service.get_open_library_book_details(external_id)
     else:
         raise ValueError(f"Unsupported source: {source}")
 
@@ -344,8 +341,6 @@ async def _update_metadata_async(
     # Fetch latest data
     if source == "google_books":
         book_data = await service.get_google_book_details(external_id)
-    elif source == "open_library":
-        book_data = await service.get_open_library_book_details(external_id)
     else:
         raise ValueError(f"Unsupported source: {source}")
 

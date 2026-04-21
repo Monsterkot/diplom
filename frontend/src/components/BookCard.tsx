@@ -31,7 +31,7 @@ function BookCard({ book, viewMode = 'grid', onDelete, onEdit, isDeleting }: Boo
   const getSourceBadge = (source: string) => {
     const badges: Record<string, { bg: string; text: string; label: string }> = {
       upload: { bg: 'bg-green-100', text: 'text-green-700', label: 'Загружено' },
-      openlibrary: { bg: 'bg-blue-100', text: 'text-blue-700', label: 'Open Library' },
+      google_books: { bg: 'bg-blue-100', text: 'text-blue-700', label: 'Google Books' },
       gutenberg: { bg: 'bg-purple-100', text: 'text-purple-700', label: 'Gutenberg' },
     }
     return badges[source] || badges.upload

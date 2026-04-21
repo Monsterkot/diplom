@@ -83,7 +83,7 @@ async def search_external_books(
     """
     Search for books in external sources.
 
-    Searches Google Books and Open Library APIs for matching books.
+    Searches Google Books for matching books.
     Results include import status if the book has already been cached.
     """
     service = get_external_apis_service()
@@ -193,9 +193,6 @@ async def search_single_source(
     try:
         if source == ExternalSourceEnum.GOOGLE_BOOKS:
             search_response = await service.search_google_books(q, limit, offset)
-        elif source == ExternalSourceEnum.OPEN_LIBRARY:
-            page = (offset // limit) + 1 if limit > 0 else 1
-            search_response = await service.search_open_library(q, limit, page)
         else:
             raise HTTPException(status_code=400, detail=f"Unsupported source: {source}")
     except ExternalAPIError as e:
@@ -269,8 +266,6 @@ async def get_book_details(
     try:
         if source == ExternalSourceEnum.GOOGLE_BOOKS:
             book_data = await service.get_google_book_details(external_id)
-        elif source == ExternalSourceEnum.OPEN_LIBRARY:
-            book_data = await service.get_open_library_book_details(external_id)
         else:
             raise HTTPException(status_code=400, detail=f"Unsupported source: {source}")
     except ExternalAPIError as e:
@@ -350,8 +345,6 @@ async def import_external_book(
     try:
         if request.source == ExternalSourceEnum.GOOGLE_BOOKS:
             book_data = await service.get_google_book_details(request.external_id)
-        elif request.source == ExternalSourceEnum.OPEN_LIBRARY:
-            book_data = await service.get_open_library_book_details(request.external_id)
         else:
             raise HTTPException(status_code=400, detail=f"Unsupported source: {request.source}")
     except ExternalAPIError as e:

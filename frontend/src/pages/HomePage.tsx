@@ -6,7 +6,7 @@ function HomePage() {
     {
       icon: Library,
       title: 'Каталог литературы',
-      description: 'Доступ к агрегированной коллекции учебных материалов из различных источников',
+      description: 'Доступ к агрегированной коллекции учебных материалов и вашей локальной библиотеке',
       link: '/library',
     },
     {
@@ -18,7 +18,7 @@ function HomePage() {
     {
       icon: Search,
       title: 'Умный поиск',
-      description: 'Быстрый полнотекстовый поиск по всей библиотеке',
+      description: 'Быстрый полнотекстовый поиск по всей библиотеке и внешним источникам',
       link: '/search',
     },
     {
@@ -31,14 +31,13 @@ function HomePage() {
 
   return (
     <div className="space-y-12">
-      {/* Hero Section */}
       <section className="text-center py-12">
         <h1 className="text-4xl font-bold text-gray-900 mb-4">
           Система агрегации учебной литературы
         </h1>
         <p className="text-xl text-gray-600 max-w-2xl mx-auto mb-8">
           Единая платформа для поиска, хранения и чтения учебных материалов
-          из открытых источников и вашей личной коллекции
+          из Google Books и вашей личной коллекции
         </p>
         <div className="flex justify-center space-x-4">
           <Link
@@ -56,7 +55,6 @@ function HomePage() {
         </div>
       </section>
 
-      {/* Features Grid */}
       <section className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
         {features.map(({ icon: Icon, title, description, link }) => (
           <Link
@@ -73,19 +71,18 @@ function HomePage() {
         ))}
       </section>
 
-      {/* Stats Section */}
       <section className="bg-white rounded-xl shadow-sm border p-8">
         <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">
           Источники данных
         </h2>
         <div className="grid md:grid-cols-3 gap-8 text-center">
           <div>
-            <div className="text-3xl font-bold text-blue-600">Open Library</div>
-            <p className="text-gray-600 mt-2">Миллионы книг в открытом доступе</p>
+            <div className="text-3xl font-bold text-blue-600">Google Books</div>
+            <p className="text-gray-600 mt-2">Поиск и импорт книг из каталога Google Books</p>
           </div>
           <div>
-            <div className="text-3xl font-bold text-blue-600">Project Gutenberg</div>
-            <p className="text-gray-600 mt-2">60,000+ бесплатных электронных книг</p>
+            <div className="text-3xl font-bold text-blue-600">Локальная библиотека</div>
+            <p className="text-gray-600 mt-2">Храните и организуйте импортированные и загруженные книги</p>
           </div>
           <div>
             <div className="text-3xl font-bold text-blue-600">Ваши файлы</div>

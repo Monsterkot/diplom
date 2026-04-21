@@ -51,7 +51,7 @@ export interface Book {
   language: string | null
   category: string | null
   tags?: string[]
-  source?: 'upload' | 'openlibrary' | 'gutenberg'
+  source?: 'upload' | 'google_books' | 'gutenberg'
   coverPath: string | null
   coverUrl: string | null
   filePath: string
@@ -252,7 +252,7 @@ export interface ReaderState {
 
 // ============ External Book Types ============
 
-export type ExternalSource = 'google_books' | 'open_library'
+export type ExternalSource = 'google_books'
 
 export interface ExternalBookSearchResult {
   externalId: string

@@ -12,7 +12,6 @@ from app.schemas.common import CamelCaseModel
 class ExternalSourceEnum(str, Enum):
     """External book sources."""
     GOOGLE_BOOKS = "google_books"
-    OPEN_LIBRARY = "open_library"
 
 
 # ============ Search Schemas ============

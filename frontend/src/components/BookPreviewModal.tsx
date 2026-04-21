@@ -27,12 +27,10 @@ interface BookPreviewModalProps {
 
 const SOURCE_LABELS: Record<ExternalSource, string> = {
   google_books: 'Google Books',
-  open_library: 'Open Library',
 }
 
 const SOURCE_COLORS: Record<ExternalSource, string> = {
   google_books: 'bg-blue-100 text-blue-700',
-  open_library: 'bg-green-100 text-green-700',
 }
 
 function BookPreviewModal({

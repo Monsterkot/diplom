@@ -20,7 +20,6 @@ class ExternalBook(Base):
 
     Sources:
     - google_books: Google Books API
-    - open_library: Open Library API
     """
 
     __tablename__ = "external_books"

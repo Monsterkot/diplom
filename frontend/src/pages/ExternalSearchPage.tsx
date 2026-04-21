@@ -11,8 +11,6 @@ import {
   AlertCircle,
   Globe,
   Library,
-  Filter,
-  X,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react'
@@ -26,19 +24,16 @@ import BookPreviewModal from '../components/BookPreviewModal'
 
 const SOURCE_LABELS: Record<ExternalSource, string> = {
   google_books: 'Google Books',
-  open_library: 'Open Library',
 }
 
 const SOURCE_COLORS: Record<ExternalSource, string> = {
   google_books: 'bg-blue-100 text-blue-700',
-  open_library: 'bg-green-100 text-green-700',
 }
 
 function ExternalSearchPage() {
   const queryClient = useQueryClient()
   const [query, setQuery] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
-  const [selectedSource, setSelectedSource] = useState<ExternalSource | 'all'>('all')
   const [selectedBook, setSelectedBook] = useState<ExternalBookSearchResult | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
@@ -59,12 +54,11 @@ function ExternalSearchPage() {
     isLoading: isSearching,
     error: searchError,
   } = useQuery({
-    queryKey: ['external-search', searchQuery, selectedSource, currentPage],
+    queryKey: ['external-search', searchQuery, currentPage],
     queryFn: async () => {
       if (!searchQuery) return null
       const response = await externalApi.search({
         q: searchQuery,
-        source: selectedSource === 'all' ? undefined : selectedSource,
         limit,
         page: currentPage,
       })
@@ -133,7 +127,7 @@ function ExternalSearchPage() {
             External Book Search
           </h1>
           <p className="text-gray-600 mt-1">
-            Search and import books from Google Books and Open Library
+            Search and import books from Google Books
           </p>
         </div>
 
@@ -170,20 +164,6 @@ function ExternalSearchPage() {
               placeholder="Search for books by title, author, or ISBN..."
               className="w-full pl-10 pr-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
-          </div>
-
-          {/* Source Filter */}
-          <div className="flex items-center gap-2">
-            <Filter className="h-5 w-5 text-gray-400" />
-            <select
-              value={selectedSource}
-              onChange={(e) => setSelectedSource(e.target.value as ExternalSource | 'all')}
-              className="px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-            >
-              <option value="all">All Sources</option>
-              <option value="google_books">Google Books</option>
-              <option value="open_library">Open Library</option>
-            </select>
           </div>
 
           {/* Search Button */}
@@ -273,7 +253,7 @@ function ExternalSearchPage() {
           <Globe className="h-16 w-16 text-gray-300 mx-auto mb-4" />
           <h2 className="text-xl font-medium text-gray-700 mb-2">Search External Libraries</h2>
           <p className="text-gray-500 max-w-md mx-auto">
-            Enter a search term above to find books from Google Books and Open Library.
+            Enter a search term above to find books from Google Books.
             You can import them to your local library for offline access.
           </p>
         </div>

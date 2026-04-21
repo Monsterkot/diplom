@@ -1,14 +1,12 @@
 """
 External APIs service for book aggregation from external sources.
-Supports Google Books API with extensible architecture for other sources.
+Currently supports Google Books only.
 """
-import asyncio
 import httpx
 from typing import Any
 from datetime import datetime
 from enum import Enum
 from pydantic import BaseModel, Field
-from functools import lru_cache
 
 from app.core.config import settings
 
@@ -16,7 +14,6 @@ from app.core.config import settings
 class ExternalSource(str, Enum):
     """Supported external book sources."""
     GOOGLE_BOOKS = "google_books"
-    OPEN_LIBRARY = "open_library"
 
 
 class ExternalBookResult(BaseModel):
@@ -78,7 +75,6 @@ class ExternalApisService:
 
     # API configuration
     GOOGLE_BOOKS_BASE_URL = "https://www.googleapis.com/books/v1"
-    OPEN_LIBRARY_BASE_URL = "https://openlibrary.org"
 
     # Timeouts and limits
     DEFAULT_TIMEOUT = 10.0  # seconds
@@ -331,208 +327,6 @@ class ExternalApisService:
         except Exception:
             return None
 
-    # ============ Open Library API ============
-
-    async def search_open_library(
-        self,
-        query: str,
-        max_results: int = 10,
-        page: int = 1,
-    ) -> ExternalSearchResponse:
-        """
-        Search books using Open Library API.
-
-        Args:
-            query: Search query
-            max_results: Maximum number of results
-            page: Page number for pagination
-
-        Returns:
-            ExternalSearchResponse with search results
-        """
-        start_time = datetime.now()
-
-        params = {
-            "q": query,
-            "limit": min(max_results, 100),
-            "page": page,
-        }
-
-        try:
-            client = await self._get_client()
-            response = await client.get(
-                f"{self.OPEN_LIBRARY_BASE_URL}/search.json",
-                params=params,
-            )
-
-            if response.status_code != 200:
-                raise ExternalAPIError(
-                    ExternalSource.OPEN_LIBRARY,
-                    f"API returned status {response.status_code}",
-                    response.status_code
-                )
-
-            data = response.json()
-
-        except httpx.TimeoutException:
-            raise ExternalAPIError(
-                ExternalSource.OPEN_LIBRARY,
-                "Request timed out"
-            )
-        except httpx.RequestError as e:
-            raise ExternalAPIError(
-                ExternalSource.OPEN_LIBRARY,
-                f"Request failed: {str(e)}"
-            )
-
-        # Parse results
-        total_items = data.get("numFound", 0)
-        items = []
-
-        for doc in data.get("docs", []):
-            parsed = self._parse_open_library_book(doc)
-            if parsed:
-                items.append(parsed)
-
-        elapsed_ms = int((datetime.now() - start_time).total_seconds() * 1000)
-
-        return ExternalSearchResponse(
-            source=ExternalSource.OPEN_LIBRARY,
-            query=query,
-            total_items=total_items,
-            items=items,
-            search_time_ms=elapsed_ms,
-        )
-
-    async def get_open_library_book_details(self, work_key: str) -> ExternalBookResult:
-        """
-        Get detailed information about a book from Open Library.
-
-        Args:
-            work_key: Open Library work key (e.g., "OL45883W")
-
-        Returns:
-            ExternalBookResult with book details
-        """
-        try:
-            client = await self._get_client()
-
-            # Get work details
-            response = await client.get(
-                f"{self.OPEN_LIBRARY_BASE_URL}/works/{work_key}.json"
-            )
-
-            if response.status_code == 404:
-                raise ExternalAPIError(
-                    ExternalSource.OPEN_LIBRARY,
-                    f"Book with key '{work_key}' not found",
-                    404
-                )
-
-            if response.status_code != 200:
-                raise ExternalAPIError(
-                    ExternalSource.OPEN_LIBRARY,
-                    f"API returned status {response.status_code}",
-                    response.status_code
-                )
-
-            work_data = response.json()
-
-            # Get author details if available
-            authors = []
-            for author_ref in work_data.get("authors", []):
-                author_key = author_ref.get("author", {}).get("key", "")
-                if author_key:
-                    try:
-                        author_response = await client.get(
-                            f"{self.OPEN_LIBRARY_BASE_URL}{author_key}.json"
-                        )
-                        if author_response.status_code == 200:
-                            author_data = author_response.json()
-                            authors.append(author_data.get("name", "Unknown"))
-                    except Exception:
-                        pass
-
-            # Build cover URL
-            cover_id = None
-            if work_data.get("covers"):
-                cover_id = work_data["covers"][0]
-
-            thumbnail_url = None
-            if cover_id:
-                thumbnail_url = f"https://covers.openlibrary.org/b/id/{cover_id}-M.jpg"
-
-            # Extract description
-            description = work_data.get("description")
-            if isinstance(description, dict):
-                description = description.get("value", "")
-
-            return ExternalBookResult(
-                external_id=work_key,
-                source=ExternalSource.OPEN_LIBRARY,
-                title=work_data.get("title", "Unknown Title"),
-                authors=authors,
-                description=description,
-                categories=work_data.get("subjects", [])[:5],
-                thumbnail_url=thumbnail_url,
-                info_link=f"https://openlibrary.org/works/{work_key}",
-                raw_metadata=work_data,
-            )
-
-        except httpx.TimeoutException:
-            raise ExternalAPIError(
-                ExternalSource.OPEN_LIBRARY,
-                "Request timed out"
-            )
-        except httpx.RequestError as e:
-            raise ExternalAPIError(
-                ExternalSource.OPEN_LIBRARY,
-                f"Request failed: {str(e)}"
-            )
-
-    def _parse_open_library_book(self, doc: dict[str, Any]) -> ExternalBookResult | None:
-        """Parse Open Library search result into ExternalBookResult."""
-        try:
-            # Get work key
-            work_key = doc.get("key", "").replace("/works/", "")
-            if not work_key:
-                return None
-
-            # Build cover URL
-            cover_id = doc.get("cover_i")
-            thumbnail_url = None
-            if cover_id:
-                thumbnail_url = f"https://covers.openlibrary.org/b/id/{cover_id}-M.jpg"
-
-            # Extract ISBNs
-            isbn_list = doc.get("isbn", [])
-            isbn_10 = None
-            isbn_13 = None
-            for isbn in isbn_list:
-                if len(isbn) == 10 and not isbn_10:
-                    isbn_10 = isbn
-                elif len(isbn) == 13 and not isbn_13:
-                    isbn_13 = isbn
-
-            return ExternalBookResult(
-                external_id=work_key,
-                source=ExternalSource.OPEN_LIBRARY,
-                title=doc.get("title", "Unknown Title"),
-                authors=doc.get("author_name", []),
-                isbn_10=isbn_10,
-                isbn_13=isbn_13,
-                publisher=doc.get("publisher", [None])[0] if doc.get("publisher") else None,
-                published_date=str(doc.get("first_publish_year", "")) if doc.get("first_publish_year") else None,
-                page_count=doc.get("number_of_pages_median"),
-                categories=doc.get("subject", [])[:5],
-                language=doc.get("language", [None])[0] if doc.get("language") else None,
-                thumbnail_url=thumbnail_url,
-                info_link=f"https://openlibrary.org/works/{work_key}",
-                raw_metadata=doc,
-            )
-        except Exception:
-            return None
-
     # ============ Unified Search ============
 
     async def search_all_sources(
@@ -543,19 +337,19 @@ class ExternalApisService:
         start_index: int = 0,
     ) -> dict[ExternalSource, ExternalSearchResponse]:
         """
-        Search books across multiple external sources.
+        Search books across configured external sources.
 
         Args:
             query: Search query
             max_results_per_source: Maximum results per source
-            sources: List of sources to search (defaults to all)
+            sources: List of sources to search (defaults to Google Books)
             start_index: Starting index for pagination
 
         Returns:
             Dictionary mapping source to search response
         """
         if sources is None:
-            sources = [ExternalSource.GOOGLE_BOOKS, ExternalSource.OPEN_LIBRARY]
+            sources = [ExternalSource.GOOGLE_BOOKS]
 
         results = {}
         tasks = []
@@ -563,11 +357,6 @@ class ExternalApisService:
         for source in sources:
             if source == ExternalSource.GOOGLE_BOOKS:
                 tasks.append((source, self.search_google_books(query, max_results_per_source, start_index)))
-            elif source == ExternalSource.OPEN_LIBRARY:
-                # Open Library uses page number, not offset
-                # Calculate page from offset (page = offset/limit + 1, but we use start_index as page directly)
-                open_library_page = (start_index // max_results_per_source) + 1 if max_results_per_source > 0 else 1
-                tasks.append((source, self.search_open_library(query, max_results_per_source, open_library_page)))
 
         # Execute searches concurrently
         for source, task in tasks:
@@ -595,14 +384,6 @@ class ExternalApisService:
                 "features": ["search", "details", "preview", "thumbnails"],
                 "rate_limit": "1000 requests/day (without API key)",
                 "has_api_key": bool(self._google_api_key),
-            },
-            {
-                "id": ExternalSource.OPEN_LIBRARY.value,
-                "name": "Open Library",
-                "description": "Free, editable library catalog from Internet Archive",
-                "features": ["search", "details", "thumbnails", "full_text"],
-                "rate_limit": "No strict limit",
-                "has_api_key": True,  # No key required
             },
         ]
 
