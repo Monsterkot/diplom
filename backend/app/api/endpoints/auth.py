@@ -78,6 +78,11 @@ async def login(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User account is inactive",
         )
+    if user.is_blocked:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User account is blocked",
+        )
 
     # Create access token
     access_token = create_access_token(

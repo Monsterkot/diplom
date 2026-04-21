@@ -38,6 +38,10 @@ from app.schemas.common import (
     PaginationParams,
     MessageResponse,
 )
+from app.schemas.audit_log import (
+    AuditLogResponse,
+    AdminAuditLogsListResponse,
+)
 
 __all__ = [
     # User
@@ -73,4 +77,6 @@ __all__ = [
     # Common
     "PaginationParams",
     "MessageResponse",
+    "AuditLogResponse",
+    "AdminAuditLogsListResponse",
 ]

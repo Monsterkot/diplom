@@ -1,12 +1,16 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
 import { authApi, setAuthToken, clearAuthToken } from '../services/api'
-import type { User } from '../types'
+import type { User, UserRole } from '../types'
 
 interface AuthContextType {
   user: User | null
   token: string | null
   isAuthenticated: boolean
   isLoading: boolean
+  isAdmin: boolean
+  canManageBooks: boolean
+  hasRole: (role: UserRole) => boolean
+  hasAnyRole: (roles: UserRole[]) => boolean
   login: (email: string, password: string) => Promise<void>
   register: (email: string, username: string, password: string) => Promise<void>
   logout: () => void
@@ -25,6 +29,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
 
   const isAuthenticated = !!user && !!token
+  const isAdmin = user?.role === 'admin'
+  const canManageBooks = user?.role === 'admin' || user?.role === 'moderator'
 
   // Check authentication on mount
   const checkAuth = useCallback(async () => {
@@ -114,6 +120,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     token,
     isAuthenticated,
     isLoading,
+    isAdmin,
+    canManageBooks,
+    hasRole: (role) => user?.role === role,
+    hasAnyRole: (roles) => !!user && roles.includes(user.role),
     login,
     register,
     logout,

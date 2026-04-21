@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field, field_validator
 from datetime import datetime
 from typing import List
 
+from app.core.access import BookStatus
 from app.schemas.common import CamelCaseModel
 
 
@@ -65,6 +66,7 @@ class BookResponse(CamelCaseModel):
     published_year: int | None = None
     language: str | None = None
     category: str | None = None
+    status: BookStatus
     file_path: str
     file_name: str
     file_size: int

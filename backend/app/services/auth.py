@@ -10,6 +10,7 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.access import can_manage_books_role, is_admin_role
 from app.core.config import settings
 from app.core.database import get_async_session
 from app.models.user import User
@@ -139,23 +140,56 @@ async def get_current_active_user(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Inactive user",
         )
+    if current_user.is_blocked:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User account is blocked",
+        )
     return current_user
 
 
-async def get_current_superuser(
+async def get_current_admin(
     current_user: Annotated[User, Depends(get_current_active_user)],
 ) -> User:
     """
-    Get current superuser.
+    Get current admin user.
 
-    Raises HTTPException if user is not superuser.
+    Raises HTTPException if user is not admin.
     """
-    if not current_user.is_superuser:
+    if not is_admin(current_user):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions",
         )
     return current_user
+
+
+async def get_current_moderator_or_admin(
+    current_user: Annotated[User, Depends(get_current_active_user)],
+) -> User:
+    """
+    Get current moderator or admin user.
+
+    Raises HTTPException if user cannot manage books.
+    """
+    if not can_manage_books(current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions",
+        )
+    return current_user
+
+
+def is_admin(user: User) -> bool:
+    """Check whether the user has admin access."""
+
+    return user.is_superuser or is_admin_role(user.role)
+
+
+def can_manage_books(user: User) -> bool:
+    """Check whether the user can moderate books."""
+
+    return user.is_superuser or can_manage_books_role(user.role)
 
 
 # Optional auth scheme (doesn't require auth)
@@ -185,7 +219,7 @@ async def get_optional_current_user(
     from app.crud.user import user_crud
     user = await user_crud.get(db, id=token_data.sub)
 
-    if user is None or not user.is_active:
+    if user is None or not user.is_active or user.is_blocked:
         return None
 
     return user
@@ -193,6 +227,7 @@ async def get_optional_current_user(
 
 # Type aliases for cleaner dependency injection
 CurrentUser = Annotated[User, Depends(get_current_active_user)]
-CurrentSuperuser = Annotated[User, Depends(get_current_superuser)]
+CurrentAdmin = Annotated[User, Depends(get_current_admin)]
+CurrentModeratorOrAdmin = Annotated[User, Depends(get_current_moderator_or_admin)]
 OptionalCurrentUser = Annotated[User | None, Depends(get_optional_current_user)]
 DBSession = Annotated[AsyncSession, Depends(get_async_session)]

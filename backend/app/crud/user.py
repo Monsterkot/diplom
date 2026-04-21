@@ -1,10 +1,11 @@
 """
 CRUD operations for User model.
 """
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud.base import CRUDBase
+from app.core.access import UserRole, is_admin_role
 from app.models.user import User
 from app.schemas.user import UserCreate, UserResponse
 from app.services.auth import get_password_hash, verify_password
@@ -35,6 +36,8 @@ class CRUDUser(CRUDBase[User, UserCreate, UserResponse]):
             hashed_password=get_password_hash(obj_in.password),
             is_active=True,
             is_superuser=False,
+            role=UserRole.USER.value,
+            is_blocked=False,
         )
         db.add(db_obj)
         await db.flush()
@@ -62,7 +65,30 @@ class CRUDUser(CRUDBase[User, UserCreate, UserResponse]):
 
     async def is_superuser(self, user: User) -> bool:
         """Check if user is superuser."""
-        return user.is_superuser
+        return user.is_superuser or is_admin_role(user.role)
+
+    async def count_filtered(
+        self,
+        db: AsyncSession,
+        *,
+        is_active: bool | None = None,
+        is_blocked: bool | None = None,
+        role: UserRole | None = None,
+    ) -> int:
+        """Count users with optional filters."""
+
+        conditions = []
+        if is_active is not None:
+            conditions.append(User.is_active == is_active)
+        if is_blocked is not None:
+            conditions.append(User.is_blocked == is_blocked)
+        if role is not None:
+            conditions.append(User.role == role.value)
+
+        result = await db.execute(
+            select(func.count()).select_from(User).where(*conditions)
+        )
+        return result.scalar_one()
 
     async def update_password(
         self,

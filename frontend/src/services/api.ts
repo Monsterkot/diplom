@@ -1,9 +1,13 @@
 import axios, { AxiosError, AxiosResponse } from 'axios'
 import type {
+  AdminStats,
+  AuditLogEntry,
   Book,
+  BookStatus,
   BookListResponse,
   BookCreate,
   User,
+  UserRole,
   Token,
   UserCreate,
   UserLogin,
@@ -16,6 +20,7 @@ import type {
   ApiError,
   ExternalSource,
   MultiSourceSearchResponse,
+  PaginatedResponse,
   ExternalSearchResponse,
   ExternalBookSearchResult,
   ExternalBookImportRequest,
@@ -180,6 +185,9 @@ export const booksApi = {
 
   getById: (id: number): Promise<AxiosResponse<Book>> =>
     api.get(`/api/books/${id}`),
+
+  getMy: (params?: { skip?: number; limit?: number }): Promise<AxiosResponse<BookListResponse>> =>
+    api.get('/api/books/my', { params }),
 
   create: (data: BookCreate): Promise<AxiosResponse<Book>> => {
     // Convert camelCase to snake_case for backend
@@ -396,6 +404,34 @@ export const externalApi = {
     const snakeCaseItems = items.map(item => toSnakeCaseKeys(item))
     return api.post('/api/external/import/bulk', { items: snakeCaseItems })
   },
+}
+
+// ============ Admin API ============
+
+export const adminApi = {
+  getStats: (): Promise<AxiosResponse<AdminStats>> =>
+    api.get('/api/admin/stats'),
+
+  getUsers: (params?: { skip?: number; limit?: number }): Promise<AxiosResponse<PaginatedResponse<User>>> =>
+    api.get('/api/admin/users', { params }),
+
+  updateUserRole: (userId: number, role: UserRole): Promise<AxiosResponse<User>> =>
+    api.patch(`/api/admin/users/${userId}/role`, { role }),
+
+  updateUserBlock: (userId: number, isBlocked: boolean): Promise<AxiosResponse<User>> =>
+    api.patch(`/api/admin/users/${userId}/block`, { is_blocked: isBlocked }),
+
+  getBooks: (params?: { skip?: number; limit?: number; status?: BookStatus }): Promise<AxiosResponse<PaginatedResponse<Book>>> =>
+    api.get('/api/admin/books', { params }),
+
+  updateBookStatus: (bookId: number, status: BookStatus): Promise<AxiosResponse<Book>> =>
+    api.patch(`/api/admin/books/${bookId}/status`, { status }),
+
+  deleteBook: (bookId: number): Promise<AxiosResponse<{ message: string; success: boolean }>> =>
+    api.delete(`/api/admin/books/${bookId}`),
+
+  getAuditLogs: (params?: { skip?: number; limit?: number }): Promise<AxiosResponse<PaginatedResponse<AuditLogEntry>>> =>
+    api.get('/api/admin/audit-logs', { params }),
 }
 
 // ============ Error helpers ============

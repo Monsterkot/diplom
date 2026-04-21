@@ -7,6 +7,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from app.core.database import Base
+from app.core.access import BookStatus
 
 if TYPE_CHECKING:
     from app.models.user import User
@@ -55,6 +56,12 @@ class Book(Base):
     category: Mapped[str | None] = mapped_column(
         String(100),
         nullable=True,
+        index=True,
+    )
+    status: Mapped[str] = mapped_column(
+        String(20),
+        default=BookStatus.PUBLISHED.value,
+        nullable=False,
         index=True,
     )
 

@@ -7,8 +7,10 @@ from datetime import datetime
 from typing import TYPE_CHECKING, List
 
 from app.core.database import Base
+from app.core.access import UserRole
 
 if TYPE_CHECKING:
+    from app.models.audit_log import AuditLog
     from app.models.book import Book
 
 
@@ -49,6 +51,17 @@ class User(Base):
         default=False,
         nullable=False,
     )
+    role: Mapped[str] = mapped_column(
+        String(20),
+        default=UserRole.USER.value,
+        nullable=False,
+        index=True,
+    )
+    is_blocked: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        nullable=False,
+    )
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
@@ -67,6 +80,10 @@ class User(Base):
         "Book",
         back_populates="uploaded_by",
         cascade="all, delete-orphan",
+    )
+    audit_logs: Mapped[List["AuditLog"]] = relationship(
+        "AuditLog",
+        back_populates="actor",
     )
 
     def __repr__(self) -> str:

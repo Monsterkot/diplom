@@ -406,7 +406,7 @@ class SearchService:
         result = await index.search(
             query,
             limit=limit + 1,  # Get extra in case original is in results
-            filter=f"id != {book_id}",
+            filter=f'id != {book_id} AND status = "published"',
         )
 
         hits = []
@@ -489,6 +489,7 @@ class SearchService:
             "content_type": book.content_type,
             "file_size": book.file_size,
             "source": "upload",
+            "status": book.status,
             "uploaded_by_id": book.uploaded_by_id,
             "created_at": book.created_at.isoformat() if book.created_at else None,
             "content": "",  # Will be filled by text extraction
@@ -522,7 +523,7 @@ class SearchService:
             if value is None:
                 continue
 
-            if key in ["author", "category", "language", "content_type", "source"]:
+            if key in ["author", "category", "language", "content_type", "source", "status"]:
                 # String equality filter
                 conditions.append(f'{key} = "{value}"')
 

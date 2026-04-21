@@ -3,9 +3,10 @@ User management endpoints.
 """
 from fastapi import APIRouter, HTTPException, status
 
+from app.services.auth import is_admin
 from app.crud.user import user_crud
 from app.schemas.user import UserResponse
-from app.services.auth import CurrentUser, CurrentSuperuser, DBSession
+from app.services.auth import CurrentUser, CurrentAdmin, DBSession
 
 router = APIRouter()
 
@@ -13,12 +14,12 @@ router = APIRouter()
 @router.get("/", response_model=list[UserResponse])
 async def get_users(
     db: DBSession,
-    current_user: CurrentSuperuser,  # Only superusers can list users
+    current_user: CurrentAdmin,
     skip: int = 0,
     limit: int = 100,
 ):
     """
-    Get list of all users (superuser only).
+    Get list of all users (admin only).
     """
     users = await user_crud.get_multi(db, skip=skip, limit=limit)
     return users
@@ -35,7 +36,7 @@ async def get_user(
 
     Users can only view their own profile unless they are superusers.
     """
-    if current_user.id != user_id and not current_user.is_superuser:
+    if current_user.id != user_id and not is_admin(current_user):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to view this user",
@@ -54,10 +55,10 @@ async def get_user(
 async def delete_user(
     user_id: int,
     db: DBSession,
-    current_user: CurrentSuperuser,  # Only superusers can delete users
+    current_user: CurrentAdmin,
 ):
     """
-    Delete a user (superuser only).
+    Delete a user (admin only).
     """
     user = await user_crud.get(db, id=user_id)
     if not user:

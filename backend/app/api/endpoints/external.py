@@ -31,6 +31,7 @@ from app.services.external_apis import (
     ExternalBookResult,
 )
 from app.services.auth import CurrentUser, OptionalCurrentUser
+from app.services.auth import is_admin
 
 router = APIRouter(prefix="/external", tags=["external"])
 
@@ -598,7 +599,7 @@ async def delete_cached_book(
         raise HTTPException(status_code=404, detail="External book not found")
 
     # Check permissions
-    if not current_user.is_superuser and book.imported_by_id != current_user.id:
+    if not is_admin(current_user) and book.imported_by_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized to delete this book")
 
     await db.delete(book)

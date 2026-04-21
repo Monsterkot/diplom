@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.crud.base import CRUDBase
+from app.core.access import BookStatus
 from app.models.book import Book
 from app.schemas.book import BookCreate, BookUpdate
 
@@ -30,24 +31,69 @@ class CRUDBook(CRUDBase[Book, BookCreate, BookUpdate]):
         user_id: int,
         skip: int = 0,
         limit: int = 100,
+        status: BookStatus | None = None,
     ) -> Sequence[Book]:
         """Get books uploaded by a specific user."""
+        query = select(Book).where(Book.uploaded_by_id == user_id)
+        if status is not None:
+            query = query.where(Book.status == status.value)
+
         result = await db.execute(
-            select(Book)
-            .where(Book.uploaded_by_id == user_id)
+            query
             .offset(skip)
             .limit(limit)
             .order_by(Book.created_at.desc())
         )
         return result.scalars().all()
 
-    async def count_by_user(self, db: AsyncSession, user_id: int) -> int:
+    async def count_by_user(
+        self,
+        db: AsyncSession,
+        user_id: int,
+        status: BookStatus | None = None,
+    ) -> int:
         """Count books uploaded by a specific user."""
+        query = select(func.count()).select_from(Book).where(Book.uploaded_by_id == user_id)
+        if status is not None:
+            query = query.where(Book.status == status.value)
+
         result = await db.execute(
-            select(func.count())
-            .select_from(Book)
-            .where(Book.uploaded_by_id == user_id)
+            query
         )
+        return result.scalar_one()
+
+    async def get_multi(
+        self,
+        db: AsyncSession,
+        *,
+        skip: int = 0,
+        limit: int = 100,
+        status: BookStatus | None = None,
+    ) -> Sequence[Book]:
+        """Get multiple books with optional status filtering."""
+
+        query = select(Book)
+        if status is not None:
+            query = query.where(Book.status == status.value)
+
+        result = await db.execute(
+            query.offset(skip).limit(limit).order_by(Book.created_at.desc())
+        )
+        return result.scalars().all()
+
+    async def count(
+        self,
+        db: AsyncSession,
+        *,
+        status: BookStatus | None = None,
+    ) -> int:
+        """Count books with optional status filtering."""
+
+        query = select(func.count()).select_from(Book)
+        if status is not None:
+            query = query.where(Book.status == status.value)
+
+        result = await db.execute(query)
         return result.scalar_one()
 
     async def search(
@@ -59,6 +105,7 @@ class CRUDBook(CRUDBase[Book, BookCreate, BookUpdate]):
         author: str | None = None,
         language: str | None = None,
         source: str | None = None,
+        status: BookStatus | None = None,
         year_from: int | None = None,
         year_to: int | None = None,
         skip: int = 0,
@@ -92,6 +139,8 @@ class CRUDBook(CRUDBase[Book, BookCreate, BookUpdate]):
             elif source == "external":
                 # Imported books have empty file_path
                 conditions.append(Book.file_path == "")
+        if status:
+            conditions.append(Book.status == status.value)
         if year_from:
             conditions.append(Book.published_year >= year_from)
         if year_to:
@@ -148,11 +197,33 @@ class CRUDBook(CRUDBase[Book, BookCreate, BookUpdate]):
         await db.refresh(db_obj)
         return db_obj
 
+    async def count_filtered(
+        self,
+        db: AsyncSession,
+        *,
+        status: BookStatus | None = None,
+        source: str | None = None,
+    ) -> int:
+        """Count books with optional filters."""
+
+        query = select(func.count()).select_from(Book)
+
+        if status is not None:
+            query = query.where(Book.status == status.value)
+        if source == "upload":
+            query = query.where(Book.file_path != "")
+        elif source == "external":
+            query = query.where(Book.file_path == "")
+
+        result = await db.execute(query)
+        return result.scalar_one()
+
     async def get_categories(self, db: AsyncSession) -> Sequence[str]:
         """Get list of unique categories."""
         result = await db.execute(
             select(Book.category)
             .where(Book.category.isnot(None))
+            .where(Book.status == BookStatus.PUBLISHED.value)
             .distinct()
             .order_by(Book.category)
         )
@@ -163,6 +234,7 @@ class CRUDBook(CRUDBase[Book, BookCreate, BookUpdate]):
         result = await db.execute(
             select(Book.language)
             .where(Book.language.isnot(None))
+            .where(Book.status == BookStatus.PUBLISHED.value)
             .distinct()
             .order_by(Book.language)
         )

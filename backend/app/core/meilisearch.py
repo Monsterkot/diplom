@@ -32,6 +32,7 @@ BOOKS_FILTERABLE_ATTRIBUTES = [
     "published_year",
     "content_type",
     "source",
+    "status",
     "uploaded_by_id",
 ]
 

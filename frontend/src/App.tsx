@@ -10,6 +10,10 @@ import ExternalSearchPage from './pages/ExternalSearchPage'
 import SearchResultsPage from './pages/SearchResultsPage'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
+import AdminDashboardPage from './pages/AdminDashboardPage'
+import AdminUsersPage from './pages/AdminUsersPage'
+import AdminBooksPage from './pages/AdminBooksPage'
+import AdminAuditLogsPage from './pages/AdminAuditLogsPage'
 
 function App() {
   return (
@@ -31,6 +35,38 @@ function App() {
             element={
               <ProtectedRoute>
                 <UploadPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="admin"
+            element={
+              <ProtectedRoute requiredRole={['moderator', 'admin']}>
+                <AdminDashboardPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="admin/users"
+            element={
+              <ProtectedRoute requiredRole="admin">
+                <AdminUsersPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="admin/books"
+            element={
+              <ProtectedRoute requiredRole={['moderator', 'admin']}>
+                <AdminBooksPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="admin/audit-logs"
+            element={
+              <ProtectedRoute requiredRole="admin">
+                <AdminAuditLogsPage />
               </ProtectedRoute>
             }
           />

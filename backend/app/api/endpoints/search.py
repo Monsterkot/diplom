@@ -6,9 +6,10 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Query, HTTPException
 from pydantic import BaseModel, Field
 
+from app.core.access import BookStatus
 from app.crud.book import book_crud
 from app.schemas.book import BookListResponse, BookResponse
-from app.services.auth import DBSession
+from app.services.auth import DBSession, CurrentAdmin, OptionalCurrentUser, is_admin
 from app.services.search_service import get_search_service, SearchResponse, SuggestResponse
 from app.services.file_service import get_file_service
 
@@ -80,6 +81,7 @@ class SearchStatsResponse(BaseModel):
 @router.get("/", response_model=FullSearchResponse)
 async def search_books(
     q: Annotated[str, Query(min_length=1, description="Search query")],
+    current_user: OptionalCurrentUser,
     page: Annotated[int, Query(ge=1)] = 1,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     category: str | None = Query(None, description="Filter by category"),
@@ -133,6 +135,8 @@ async def search_books(
             filters["published_year"]["min"] = year_from
         if year_to:
             filters["published_year"]["max"] = year_to
+    if not current_user or not is_admin(current_user):
+        filters["status"] = BookStatus.PUBLISHED.value
 
     # Build sort
     sort_list = None
@@ -205,7 +209,12 @@ async def suggest_search(
     search_service = get_search_service()
 
     try:
-        result = await search_service.suggest(query=q, limit=limit)
+        result = await search_service.search(
+            query=q,
+            page=1,
+            hits_per_page=limit,
+            filters={"status": BookStatus.PUBLISHED.value},
+        )
     except Exception as e:
         raise HTTPException(status_code=503, detail=f"Search service error: {str(e)}")
 
@@ -218,7 +227,7 @@ async def suggest_search(
                 author=s.author,
                 category=s.category,
             )
-            for s in result.suggestions
+            for s in result.hits
         ],
         processing_time_ms=result.processing_time_ms,
     )
@@ -227,7 +236,9 @@ async def suggest_search(
 @router.get("/similar/{book_id}")
 async def get_similar_books(
     book_id: int,
+    db: DBSession,
     limit: Annotated[int, Query(ge=1, le=20)] = 5,
+    current_user: OptionalCurrentUser = None,
 ):
     """
     Get books similar to a given book.
@@ -242,6 +253,12 @@ async def get_similar_books(
         List of similar books
     """
     search_service = get_search_service()
+
+    book = await book_crud.get(db, id=book_id)
+    if not book:
+        raise HTTPException(status_code=404, detail="Book not found")
+    if book.status != BookStatus.PUBLISHED.value and (not current_user or not is_admin(current_user)):
+        raise HTTPException(status_code=404, detail="Book not found")
 
     try:
         similar = await search_service.get_similar_books(book_id, limit)
@@ -266,6 +283,7 @@ async def get_similar_books(
 @router.get("/facets")
 async def get_search_facets(
     q: str = Query("", description="Optional search query to scope facets"),
+    current_user: OptionalCurrentUser = None,
 ):
     """
     Get available filter facets and their counts.
@@ -287,6 +305,7 @@ async def get_search_facets(
             query=q if q else "*",
             page=1,
             hits_per_page=1,  # We only need facets
+            filters=None if current_user and is_admin(current_user) else {"status": BookStatus.PUBLISHED.value},
         )
     except Exception as e:
         raise HTTPException(status_code=503, detail=f"Search service error: {str(e)}")
@@ -321,6 +340,7 @@ async def get_search_stats():
 @router.post("/reindex")
 async def trigger_reindex(
     db: DBSession,
+    current_user: CurrentAdmin,
 ):
     """
     Trigger a full reindex of all books.
@@ -334,7 +354,7 @@ async def trigger_reindex(
     search_service = get_search_service()
 
     # Get all books from database
-    books, _ = await book_crud.get_multi(db, skip=0, limit=10000)
+    books = await book_crud.get_multi(db, skip=0, limit=10000)
 
     try:
         result = await search_service.reindex_all_books(list(books))
@@ -377,6 +397,7 @@ async def search_books_legacy(
         category=category,
         author=author,
         language=language,
+        status=BookStatus.PUBLISHED,
         year_from=year_from,
         year_to=year_to,
         skip=skip,

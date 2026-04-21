@@ -10,6 +10,7 @@ from loguru import logger
 import io
 import chardet
 
+from app.core.access import BookStatus
 from app.crud.book import book_crud
 from app.schemas.book import (
     BookCreate,
@@ -19,12 +20,28 @@ from app.schemas.book import (
     BookFileResponse,
     BookHtmlResponse,
 )
-from app.services.auth import CurrentUser, DBSession, OptionalCurrentUser
+from app.services.auth import CurrentUser, DBSession, OptionalCurrentUser, is_admin
 from app.services.file_service import file_service
 from app.services.search_service import get_search_service
 from app.services.docx_converter import get_docx_converter, ConversionError
 
 router = APIRouter()
+
+
+def can_manage_book(current_user, book) -> bool:
+    """Check whether the current user can manage the book."""
+
+    return book.uploaded_by_id == current_user.id or is_admin(current_user)
+
+
+def can_view_book(current_user, book) -> bool:
+    """Check whether the current user can view the book."""
+
+    if book.status == BookStatus.PUBLISHED.value:
+        return True
+    if current_user is None:
+        return False
+    return can_manage_book(current_user, book)
 
 
 def detect_and_convert_to_utf8(content: bytes) -> tuple[bytes, str]:
@@ -198,14 +215,20 @@ async def get_books(
             author=author,
             language=language,
             source=source,
+            status=BookStatus.PUBLISHED,
             year_from=year_from,
             year_to=year_to,
             skip=skip,
             limit=limit,
         )
     else:
-        books = await book_crud.get_multi(db, skip=skip, limit=limit)
-        total = await book_crud.count(db)
+        books = await book_crud.get_multi(
+            db,
+            skip=skip,
+            limit=limit,
+            status=BookStatus.PUBLISHED,
+        )
+        total = await book_crud.count(db, status=BookStatus.PUBLISHED)
 
     # Generate download URLs
     items = []
@@ -284,12 +307,18 @@ async def get_languages(db: DBSession):
 async def get_book(
     book_id: int,
     db: DBSession,
+    current_user: OptionalCurrentUser,
 ):
     """
     Get book by ID.
     """
     book = await book_crud.get(db, id=book_id)
     if not book:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Book not found",
+        )
+    if not can_view_book(current_user, book):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Book not found",
@@ -308,6 +337,7 @@ async def get_book(
 async def get_book_file(
     book_id: int,
     db: DBSession,
+    current_user: OptionalCurrentUser,
     download: bool = Query(False, description="Force download instead of inline view"),
 ):
     """
@@ -318,6 +348,11 @@ async def get_book_file(
     """
     book = await book_crud.get(db, id=book_id)
     if not book:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Book not found",
+        )
+    if not can_view_book(current_user, book):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Book not found",
@@ -353,6 +388,7 @@ async def get_book_file(
 async def stream_book_file(
     book_id: int,
     db: DBSession,
+    current_user: OptionalCurrentUser,
     download: bool = Query(False, description="Force download with attachment disposition"),
 ):
     """
@@ -365,6 +401,11 @@ async def stream_book_file(
     """
     book = await book_crud.get(db, id=book_id)
     if not book:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Book not found",
+        )
+    if not can_view_book(current_user, book):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Book not found",
@@ -405,6 +446,7 @@ async def stream_book_file(
 async def get_book_html(
     book_id: int,
     db: DBSession,
+    current_user: OptionalCurrentUser,
 ):
     """
     Get HTML version of DOCX file for preview.
@@ -417,6 +459,11 @@ async def get_book_html(
     """
     book = await book_crud.get(db, id=book_id)
     if not book:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Book not found",
+        )
+    if not can_view_book(current_user, book):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Book not found",
@@ -485,7 +532,7 @@ async def update_book(
         )
 
     # Check permissions
-    if book.uploaded_by_id != current_user.id and not current_user.is_superuser:
+    if not can_manage_book(current_user, book):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to update this book",
@@ -533,7 +580,7 @@ async def delete_book(
         )
 
     # Check permissions
-    if book.uploaded_by_id != current_user.id and not current_user.is_superuser:
+    if not can_manage_book(current_user, book):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to delete this book",

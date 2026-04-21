@@ -8,9 +8,13 @@ export interface User {
   id: number
   email: string
   username: string
-  is_active: boolean
-  created_at: string
+  role: UserRole
+  isActive: boolean
+  isBlocked: boolean
+  createdAt: string
 }
+
+export type UserRole = 'user' | 'moderator' | 'admin'
 
 export interface UserCreate {
   email: string
@@ -50,6 +54,7 @@ export interface Book {
   publishedYear: number | null
   language: string | null
   category: string | null
+  status: BookStatus
   tags?: string[]
   source?: 'upload' | 'google_books' | 'gutenberg'
   coverPath: string | null
@@ -64,6 +69,8 @@ export interface Book {
   createdAt: string
   updatedAt: string | null
 }
+
+export type BookStatus = 'published' | 'hidden'
 
 export interface BookCreate {
   title: string
@@ -110,9 +117,11 @@ export interface SearchParams {
   category?: string
   author?: string
   language?: string
+  source?: string
   contentType?: string
   yearFrom?: number
   yearTo?: number
+  skip?: number
   page?: number
   limit?: number
   sort?: string
@@ -350,4 +359,28 @@ export interface ExternalBook {
   importedAt: string | null
   createdAt: string
   updatedAt: string | null
+}
+
+export interface AdminStats {
+  totalUsers: number
+  activeUsers: number
+  blockedUsers: number
+  adminUsers: number
+  moderatorUsers: number
+  totalBooks: number
+  publishedBooks: number
+  hiddenBooks: number
+  uploadedBooks: number
+  importedBooks: number
+  generatedAt: string
+}
+
+export interface AuditLogEntry {
+  id: number
+  action: string
+  entityType: string
+  entityId: number | null
+  details: Record<string, unknown> | null
+  actor: Pick<User, 'id' | 'email' | 'username' | 'role'> | null
+  createdAt: string
 }

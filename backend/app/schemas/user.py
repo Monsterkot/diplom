@@ -5,6 +5,7 @@ from pydantic import BaseModel, EmailStr, Field, field_validator
 from datetime import datetime
 import re
 
+from app.core.access import UserRole
 from app.schemas.common import CamelCaseModel
 
 
@@ -46,6 +47,8 @@ class UserResponse(CamelCaseModel):
     email: EmailStr
     username: str
     is_active: bool
+    is_blocked: bool
+    role: UserRole
     created_at: datetime
 
 
@@ -54,6 +57,15 @@ class UserInDB(UserResponse):
 
     hashed_password: str
     is_superuser: bool
+
+
+class UserSummary(CamelCaseModel):
+    """Compact user representation for admin responses."""
+
+    id: int
+    email: EmailStr
+    username: str
+    role: UserRole
 
 
 class UserLogin(BaseModel):

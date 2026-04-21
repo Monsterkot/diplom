@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import BookList from '../components/BookList'
 import EditBookModal from '../components/EditBookModal'
 import { booksApi, searchApi, getErrorMessage } from '../services/api'
+import { useAuth } from '../contexts/AuthContext'
 import type { Book, ViewMode, FilterState } from '../types'
 
 const ITEMS_PER_PAGE = 20
@@ -12,13 +13,14 @@ const ITEMS_PER_PAGE = 20
 type BookSource = 'all' | 'my' | 'imported'
 
 function LibraryPage() {
+  const { isAuthenticated } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
   const queryClient = useQueryClient()
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
   const [showFilters, setShowFilters] = useState(false)
   const [deletingBookId, setDeletingBookId] = useState<number | null>(null)
   const [editingBook, setEditingBook] = useState<Book | null>(null)
-  const [bookSource, setBookSource] = useState<BookSource>('my')
+  const [bookSource, setBookSource] = useState<BookSource>('all')
 
   // Активные фильтры (применённые)
   const [filters, setFilters] = useState<FilterState>({
@@ -55,6 +57,12 @@ function LibraryPage() {
     setTempFilters(newFilters)
   }, [])
 
+  useEffect(() => {
+    if (!isAuthenticated && bookSource === 'my') {
+      setBookSource('all')
+    }
+  }, [isAuthenticated, bookSource])
+
   // Fetch books
   const {
     data: booksData,
@@ -80,6 +88,14 @@ function LibraryPage() {
         return response.data
       } else {
         // Browse mode
+        if (bookSource === 'my') {
+          const response = await booksApi.getMy({
+            skip,
+            limit: ITEMS_PER_PAGE,
+          })
+          return response.data
+        }
+
         const response = await booksApi.getAll({
           skip,
           limit: ITEMS_PER_PAGE,
@@ -200,7 +216,7 @@ function LibraryPage() {
           {/* Source Filter Toggle */}
           <div className="flex border rounded-lg overflow-hidden">
             <button
-              onClick={() => setBookSource('my')}
+              onClick={() => isAuthenticated ? setBookSource('my') : setBookSource('all')}
               className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors ${
                 bookSource === 'my'
                   ? 'bg-blue-600 text-white'
