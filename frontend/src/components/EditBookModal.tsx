@@ -60,6 +60,7 @@ function EditBookModal({ book, isOpen, onClose, onBookUpdated }: EditBookModalPr
         publishedYear: book.publishedYear || undefined,
         language: book.language || '',
         category: book.category || '',
+        visibility: book.visibility,
       })
     }
   }, [book])
@@ -79,6 +80,7 @@ function EditBookModal({ book, isOpen, onClose, onBookUpdated }: EditBookModalPr
         publishedYear: formData.publishedYear || undefined,
         language: formData.language || undefined,
         category: formData.category || undefined,
+        visibility: formData.visibility || undefined,
       }
       
       const response = await booksApi.update(book.id, updateData)
@@ -155,6 +157,42 @@ function EditBookModal({ book, isOpen, onClose, onBookUpdated }: EditBookModalPr
               className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="Введите название книги"
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Доступ к книге
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <label className={`border rounded-lg p-4 cursor-pointer transition-colors ${
+                formData.visibility === 'private' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
+              }`}>
+                <input
+                  type="radio"
+                  name="visibility"
+                  value="private"
+                  checked={formData.visibility === 'private'}
+                  onChange={handleInputChange}
+                  className="sr-only"
+                />
+                <p className="font-medium text-gray-900">Приватная</p>
+                <p className="text-sm text-gray-600 mt-1">Книга доступна только вам.</p>
+              </label>
+              <label className={`border rounded-lg p-4 cursor-pointer transition-colors ${
+                formData.visibility === 'public' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
+              }`}>
+                <input
+                  type="radio"
+                  name="visibility"
+                  value="public"
+                  checked={formData.visibility === 'public'}
+                  onChange={handleInputChange}
+                  className="sr-only"
+                />
+                <p className="font-medium text-gray-900">Публичная</p>
+                <p className="text-sm text-gray-600 mt-1">Книга будет видна другим пользователям в библиотеке.</p>
+              </label>
+            </div>
           </div>
 
           {/* Author */}

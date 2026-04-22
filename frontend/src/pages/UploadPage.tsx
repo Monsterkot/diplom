@@ -4,7 +4,7 @@ import { CheckCircle, AlertCircle, ArrowRight, BookOpen } from 'lucide-react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import FileUploader from '../components/FileUploader'
 import { booksApi, getErrorMessage } from '../services/api'
-import type { BookCreate, UploadProgress } from '../types'
+import type { BookCreate, BookVisibility, UploadProgress } from '../types'
 
 interface FormData extends BookCreate {
   file: File | null
@@ -39,6 +39,7 @@ function UploadPage() {
   const queryClient = useQueryClient()
   const [step, setStep] = useState<'file' | 'metadata' | 'complete'>('file')
   const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null)
+  const [tagInput, setTagInput] = useState('')
   const [formData, setFormData] = useState<FormData>({
     file: null,
     title: '',
@@ -49,14 +50,15 @@ function UploadPage() {
     publishedYear: undefined,
     language: 'ru',
     category: '',
+    visibility: 'private',
     tags: [],
   })
-  const [tagInput, setTagInput] = useState('')
 
-  // Upload mutation
   const uploadMutation = useMutation({
     mutationFn: async () => {
-      if (!formData.file) throw new Error('Файл не выбран')
+      if (!formData.file) {
+        throw new Error('Файл не выбран')
+      }
 
       setUploadProgress({
         file: formData.file,
@@ -73,35 +75,28 @@ function UploadPage() {
         publishedYear: formData.publishedYear || undefined,
         language: formData.language || undefined,
         category: formData.category || undefined,
+        visibility: formData.visibility as BookVisibility,
         tags: formData.tags?.length ? formData.tags : undefined,
       }
 
       const response = await booksApi.upload(formData.file, metadata, (progress) => {
-        setUploadProgress((prev) =>
-          prev ? { ...prev, progress, status: 'uploading' } : null
-        )
+        setUploadProgress((prev) => (prev ? { ...prev, progress, status: 'uploading' } : null))
       })
 
       return response.data
     },
-    onSuccess: (book) => {
+    onSuccess: () => {
       setUploadProgress((prev) => (prev ? { ...prev, status: 'completed', progress: 100 } : null))
       setStep('complete')
     },
     onError: (error) => {
-      setUploadProgress((prev) =>
-        prev ? { ...prev, status: 'error', error: getErrorMessage(error) } : null
-      )
+      setUploadProgress((prev) => (prev ? { ...prev, status: 'error', error: getErrorMessage(error) } : null))
     },
   })
 
   const handleFileSelect = (file: File) => {
-    // Extract title from filename
     const nameWithoutExt = file.name.replace(/\.[^/.]+$/, '')
-    const cleanTitle = nameWithoutExt
-      .replace(/[_-]/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim()
+    const cleanTitle = nameWithoutExt.replace(/[_-]/g, ' ').replace(/\s+/g, ' ').trim()
 
     setFormData((prev) => ({
       ...prev,
@@ -116,19 +111,21 @@ function UploadPage() {
     const { name, value } = e.target
     setFormData((prev) => ({
       ...prev,
-      [name]: name === 'publishedYear' ? (value ? parseInt(value) : undefined) : value,
+      [name]: name === 'publishedYear' ? (value ? parseInt(value, 10) : undefined) : value,
     }))
   }
 
   const handleAddTag = () => {
     const tag = tagInput.trim()
-    if (tag && !formData.tags?.includes(tag)) {
-      setFormData((prev) => ({
-        ...prev,
-        tags: [...(prev.tags || []), tag],
-      }))
-      setTagInput('')
+    if (!tag || formData.tags?.includes(tag)) {
+      return
     }
+
+    setFormData((prev) => ({
+      ...prev,
+      tags: [...(prev.tags || []), tag],
+    }))
+    setTagInput('')
   }
 
   const handleRemoveTag = (tagToRemove: string) => {
@@ -145,24 +142,17 @@ function UploadPage() {
     }
   }
 
-  const goToMetadata = () => {
-    if (formData.file) {
-      setStep('metadata')
-    }
-  }
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     uploadMutation.mutate()
   }
 
-  // Step 1: File selection
   if (step === 'file') {
     return (
       <div className="max-w-2xl mx-auto space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Загрузка книги</h1>
-          <p className="text-gray-600 mt-1">Выберите файл для загрузки</p>
+          <p className="text-gray-600 mt-1">Выберите файл, который хотите добавить в библиотеку</p>
         </div>
 
         <FileUploader
@@ -174,7 +164,7 @@ function UploadPage() {
         {formData.file && (
           <div className="flex justify-end">
             <button
-              onClick={goToMetadata}
+              onClick={() => setStep('metadata')}
               className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
             >
               Далее
@@ -186,16 +176,14 @@ function UploadPage() {
     )
   }
 
-  // Step 2: Metadata form
   if (step === 'metadata') {
     return (
       <div className="max-w-2xl mx-auto space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Информация о книге</h1>
-          <p className="text-gray-600 mt-1">Заполните данные о книге</p>
+          <p className="text-gray-600 mt-1">Заполните данные и выберите доступ к книге</p>
         </div>
 
-        {/* Selected file preview */}
         <FileUploader
           onFileSelect={handleFileSelect}
           selectedFile={formData.file}
@@ -203,7 +191,6 @@ function UploadPage() {
         />
 
         <form onSubmit={handleSubmit} className="bg-white rounded-lg border p-6 space-y-6">
-          {/* Title (required) */}
           <div>
             <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
               Название <span className="text-red-500">*</span>
@@ -220,7 +207,6 @@ function UploadPage() {
             />
           </div>
 
-          {/* Author */}
           <div>
             <label htmlFor="author" className="block text-sm font-medium text-gray-700 mb-1">
               Автор
@@ -236,7 +222,6 @@ function UploadPage() {
             />
           </div>
 
-          {/* Description */}
           <div>
             <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
               Описание
@@ -252,9 +237,7 @@ function UploadPage() {
             />
           </div>
 
-          {/* Two columns */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Category */}
             <div>
               <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1">
                 Категория
@@ -267,15 +250,14 @@ function UploadPage() {
                 className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="">Выберите категорию</option>
-                {CATEGORIES.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {cat}
+                {CATEGORIES.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
                   </option>
                 ))}
               </select>
             </div>
 
-            {/* Language */}
             <div>
               <label htmlFor="language" className="block text-sm font-medium text-gray-700 mb-1">
                 Язык
@@ -287,15 +269,14 @@ function UploadPage() {
                 onChange={handleInputChange}
                 className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
-                {LANGUAGES.map((lang) => (
-                  <option key={lang.value} value={lang.value}>
-                    {lang.label}
+                {LANGUAGES.map((language) => (
+                  <option key={language.value} value={language.value}>
+                    {language.label}
                   </option>
                 ))}
               </select>
             </div>
 
-            {/* Publisher */}
             <div>
               <label htmlFor="publisher" className="block text-sm font-medium text-gray-700 mb-1">
                 Издательство
@@ -311,7 +292,6 @@ function UploadPage() {
               />
             </div>
 
-            {/* Year */}
             <div>
               <label htmlFor="publishedYear" className="block text-sm font-medium text-gray-700 mb-1">
                 Год издания
@@ -329,7 +309,6 @@ function UploadPage() {
               />
             </div>
 
-            {/* ISBN */}
             <div className="sm:col-span-2">
               <label htmlFor="isbn" className="block text-sm font-medium text-gray-700 mb-1">
                 ISBN
@@ -346,7 +325,43 @@ function UploadPage() {
             </div>
           </div>
 
-          {/* Tags */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Доступ к книге
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <label className={`border rounded-lg p-4 cursor-pointer transition-colors ${
+                formData.visibility === 'private' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
+              }`}>
+                <input
+                  type="radio"
+                  name="visibility"
+                  value="private"
+                  checked={formData.visibility === 'private'}
+                  onChange={handleInputChange}
+                  className="sr-only"
+                />
+                <p className="font-medium text-gray-900">Приватная</p>
+                <p className="text-sm text-gray-600 mt-1">Книга будет доступна только вам.</p>
+              </label>
+
+              <label className={`border rounded-lg p-4 cursor-pointer transition-colors ${
+                formData.visibility === 'public' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
+              }`}>
+                <input
+                  type="radio"
+                  name="visibility"
+                  value="public"
+                  checked={formData.visibility === 'public'}
+                  onChange={handleInputChange}
+                  className="sr-only"
+                />
+                <p className="font-medium text-gray-900">Публичная</p>
+                <p className="text-sm text-gray-600 mt-1">Книга появится в разделе с книгами пользователей.</p>
+              </label>
+            </div>
+          </div>
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Теги</label>
             <div className="flex flex-wrap gap-2 mb-2">
@@ -385,7 +400,6 @@ function UploadPage() {
             </div>
           </div>
 
-          {/* Error message */}
           {uploadMutation.isError && (
             <div className="flex items-center gap-2 p-4 bg-red-50 text-red-700 rounded-lg">
               <AlertCircle className="h-5 w-5 flex-shrink-0" />
@@ -393,7 +407,6 @@ function UploadPage() {
             </div>
           )}
 
-          {/* Actions */}
           <div className="flex justify-between pt-4 border-t">
             <button
               type="button"
@@ -415,14 +428,13 @@ function UploadPage() {
     )
   }
 
-  // Step 3: Complete
   return (
     <div className="max-w-lg mx-auto text-center py-12">
       <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
         <CheckCircle className="h-10 w-10 text-green-600" />
       </div>
 
-      <h1 className="text-2xl font-bold text-gray-900 mb-2">Книга загружена!</h1>
+      <h1 className="text-2xl font-bold text-gray-900 mb-2">Книга загружена</h1>
       <p className="text-gray-600 mb-8">
         Книга "{formData.title}" успешно добавлена в вашу библиотеку.
       </p>
@@ -440,6 +452,7 @@ function UploadPage() {
               publishedYear: undefined,
               language: 'ru',
               category: '',
+              visibility: 'private',
               tags: [],
             })
             setUploadProgress(null)
@@ -449,12 +462,11 @@ function UploadPage() {
         >
           Загрузить ещё
         </button>
+
         <button
           onClick={() => {
-            // Инвалидировать кэш библиотеки перед переходом
             queryClient.invalidateQueries({ queryKey: ['books'] })
             queryClient.invalidateQueries({ queryKey: ['categories'] })
-            // Перейти в библиотеку
             navigate('/library')
           }}
           className="flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"

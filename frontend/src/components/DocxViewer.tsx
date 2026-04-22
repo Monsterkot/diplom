@@ -24,6 +24,7 @@ interface HtmlContent {
 }
 
 function DocxViewer({ url, bookId, title, onDownload }: DocxViewerProps) {
+  void url
   const [content, setContent] = useState<HtmlContent | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)

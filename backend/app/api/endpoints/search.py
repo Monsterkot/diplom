@@ -6,7 +6,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Query, HTTPException
 from pydantic import BaseModel, Field
 
-from app.core.access import BookStatus
+from app.core.access import BookStatus, BookVisibility
 from app.crud.book import book_crud
 from app.schemas.book import BookListResponse, BookResponse
 from app.services.auth import DBSession, CurrentAdmin, OptionalCurrentUser, is_admin
@@ -137,6 +137,7 @@ async def search_books(
             filters["published_year"]["max"] = year_to
     if not current_user or not is_admin(current_user):
         filters["status"] = BookStatus.PUBLISHED.value
+        filters["visibility"] = BookVisibility.PUBLIC.value
 
     # Build sort
     sort_list = None
@@ -213,7 +214,10 @@ async def suggest_search(
             query=q,
             page=1,
             hits_per_page=limit,
-            filters={"status": BookStatus.PUBLISHED.value},
+            filters={
+                "status": BookStatus.PUBLISHED.value,
+                "visibility": BookVisibility.PUBLIC.value,
+            },
         )
     except Exception as e:
         raise HTTPException(status_code=503, detail=f"Search service error: {str(e)}")
@@ -257,7 +261,10 @@ async def get_similar_books(
     book = await book_crud.get(db, id=book_id)
     if not book:
         raise HTTPException(status_code=404, detail="Book not found")
-    if book.status != BookStatus.PUBLISHED.value and (not current_user or not is_admin(current_user)):
+    if (
+        book.status != BookStatus.PUBLISHED.value
+        or book.visibility != BookVisibility.PUBLIC.value
+    ) and (not current_user or not is_admin(current_user)):
         raise HTTPException(status_code=404, detail="Book not found")
 
     try:
@@ -305,7 +312,10 @@ async def get_search_facets(
             query=q if q else "*",
             page=1,
             hits_per_page=1,  # We only need facets
-            filters=None if current_user and is_admin(current_user) else {"status": BookStatus.PUBLISHED.value},
+            filters=None if current_user and is_admin(current_user) else {
+                "status": BookStatus.PUBLISHED.value,
+                "visibility": BookVisibility.PUBLIC.value,
+            },
         )
     except Exception as e:
         raise HTTPException(status_code=503, detail=f"Search service error: {str(e)}")
@@ -398,6 +408,7 @@ async def search_books_legacy(
         author=author,
         language=language,
         status=BookStatus.PUBLISHED,
+        visibility=BookVisibility.PUBLIC,
         year_from=year_from,
         year_to=year_to,
         skip=skip,

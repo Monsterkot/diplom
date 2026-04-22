@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from app.core.database import Base
-from app.core.access import BookStatus
+from app.core.access import BookStatus, BookVisibility
 
 if TYPE_CHECKING:
     from app.models.user import User
@@ -61,6 +61,12 @@ class Book(Base):
     status: Mapped[str] = mapped_column(
         String(20),
         default=BookStatus.PUBLISHED.value,
+        nullable=False,
+        index=True,
+    )
+    visibility: Mapped[str] = mapped_column(
+        String(20),
+        default=BookVisibility.PRIVATE.value,
         nullable=False,
         index=True,
     )
@@ -120,3 +126,9 @@ class Book(Base):
 
     def __repr__(self) -> str:
         return f"<Book(id={self.id}, title={self.title})>"
+
+    @property
+    def uploaded_by_username(self) -> str | None:
+        """Expose uploader username for API responses."""
+
+        return self.uploaded_by.username if self.uploaded_by else None

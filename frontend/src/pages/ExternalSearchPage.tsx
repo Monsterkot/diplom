@@ -10,7 +10,6 @@ import {
   Check,
   AlertCircle,
   Globe,
-  Library,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react'
@@ -18,7 +17,6 @@ import { externalApi, getErrorMessage } from '../services/api'
 import type {
   ExternalSource,
   ExternalBookSearchResult,
-  MultiSourceSearchResponse,
 } from '../types'
 import BookPreviewModal from '../components/BookPreviewModal'
 

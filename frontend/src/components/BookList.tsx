@@ -12,6 +12,7 @@ interface BookListProps {
   error?: string | null
   onPageChange: (skip: number) => void
   onDeleteBook?: (bookId: number) => Promise<void>
+  onEditBook?: (book: Book) => void
   deletingBookId?: number | null
 }
 
@@ -25,6 +26,7 @@ function BookList({
   error = null,
   onPageChange,
   onDeleteBook,
+  onEditBook,
   deletingBookId,
 }: BookListProps) {
   const currentPage = Math.floor(skip / limit) + 1
@@ -143,6 +145,7 @@ function BookList({
             book={book}
             viewMode={viewMode}
             onDelete={onDeleteBook}
+            onEdit={onEditBook}
             isDeleting={deletingBookId === book.id}
           />
         ))}

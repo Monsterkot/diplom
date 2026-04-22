@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field, field_validator
 from datetime import datetime
 from typing import List
 
-from app.core.access import BookStatus
+from app.core.access import BookStatus, BookVisibility
 from app.schemas.common import CamelCaseModel
 
 
@@ -20,6 +20,7 @@ class BookBase(BaseModel):
     published_year: int | None = Field(default=None, ge=1000, le=2100)
     language: str | None = Field(default=None, max_length=50)
     category: str | None = Field(default=None, max_length=100)
+    visibility: BookVisibility = BookVisibility.PRIVATE
 
 
 class BookCreate(BookBase):
@@ -52,6 +53,7 @@ class BookUpdate(BaseModel):
     published_year: int | None = Field(default=None, ge=1000, le=2100)
     language: str | None = Field(default=None, max_length=50)
     category: str | None = Field(default=None, max_length=100)
+    visibility: BookVisibility | None = None
 
 
 class BookResponse(CamelCaseModel):
@@ -67,6 +69,7 @@ class BookResponse(CamelCaseModel):
     language: str | None = None
     category: str | None = None
     status: BookStatus
+    visibility: BookVisibility
     file_path: str
     file_name: str
     file_size: int
@@ -75,6 +78,7 @@ class BookResponse(CamelCaseModel):
     cover_url: str | None = None
     download_url: str | None = None
     uploaded_by_id: int
+    uploaded_by_username: str | None = None
     created_at: datetime
     updated_at: datetime | None = None
 

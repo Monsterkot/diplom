@@ -17,8 +17,7 @@ import {
   Edit2,
 } from 'lucide-react'
 import { Reader, FileTypeInfo, EditBookModal } from '../components'
-import { booksApi, getErrorMessage, getBookStreamUrl, getBookDownloadUrl, downloadBookFile } from '../services/api'
-import type { Book } from '../types'
+import { booksApi, getErrorMessage, getBookStreamUrl, downloadBookFile } from '../services/api'
 
 function ReaderPage() {
   const { bookId } = useParams<{ bookId: string }>()
@@ -71,7 +70,7 @@ function ReaderPage() {
     if (bookId && book?.fileName) {
       try {
         // Используем iframe для скачивания - это не блокирует предпросмотр
-        downloadBookFile(parseInt(bookId), book.fileName)
+        downloadBookFile(parseInt(bookId))
       } catch (error) {
         console.error('Download error:', error)
       }

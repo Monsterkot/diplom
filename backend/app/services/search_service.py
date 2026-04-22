@@ -13,6 +13,7 @@ from app.core.meilisearch import (
 )
 from app.services.text_extractor import get_text_extractor, TextExtractionError
 from app.services.file_service import get_file_service
+from app.core.access import BookStatus, BookVisibility
 from app.models.book import Book
 from app.models.external_book import ExternalBook
 
@@ -175,6 +176,16 @@ class SearchService:
             file_content if update_content else None,
             extract_text=update_content,
         )
+
+    async def sync_book_visibility(self, book: Book) -> bool:
+        """Keep the public search index aligned with book visibility rules."""
+
+        if (
+            book.status == BookStatus.PUBLISHED.value
+            and book.visibility == BookVisibility.PUBLIC.value
+        ):
+            return await self.update_book_index(book, update_content=False)
+        return await self.delete_book_from_index(book.id)
 
     async def delete_book_from_index(self, book_id: int) -> bool:
         """
@@ -406,7 +417,7 @@ class SearchService:
         result = await index.search(
             query,
             limit=limit + 1,  # Get extra in case original is in results
-            filter=f'id != {book_id} AND status = "published"',
+            filter=f'id != {book_id} AND status = "published" AND visibility = "public"',
         )
 
         hits = []
@@ -444,8 +455,12 @@ class SearchService:
         # Clear existing index
         await index.delete_all_documents()
 
-        # Prepare documents
-        documents = [self._book_to_document(book) for book in books]
+        # Only public published books belong in the public search index.
+        documents = [
+            self._book_to_document(book)
+            for book in books
+            if book.status == BookStatus.PUBLISHED.value and book.visibility == BookVisibility.PUBLIC.value
+        ]
 
         # Add in batches
         batch_size = 100
@@ -490,6 +505,7 @@ class SearchService:
             "file_size": book.file_size,
             "source": "upload",
             "status": book.status,
+            "visibility": book.visibility,
             "uploaded_by_id": book.uploaded_by_id,
             "created_at": book.created_at.isoformat() if book.created_at else None,
             "content": "",  # Will be filled by text extraction
@@ -523,7 +539,7 @@ class SearchService:
             if value is None:
                 continue
 
-            if key in ["author", "category", "language", "content_type", "source", "status"]:
+            if key in ["author", "category", "language", "content_type", "source", "status", "visibility"]:
                 # String equality filter
                 conditions.append(f'{key} = "{value}"')
 

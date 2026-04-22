@@ -10,13 +10,11 @@ import type {
   UserRole,
   Token,
   UserCreate,
-  UserLogin,
   SearchParams,
   SuggestResponse,
   FullSearchResponse,
   SearchStats,
   SimilarBook,
-  Category,
   ApiError,
   ExternalSource,
   MultiSourceSearchResponse,
@@ -27,7 +25,7 @@ import type {
   ImportResult,
   SourcesListResponse,
 } from '../types'
-import { toSnakeCase, toSnakeCaseKeys, toSnakeCaseKeysDeep } from '../utils/caseConverter'
+import { toSnakeCase, toSnakeCaseKeys } from '../utils/caseConverter'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
@@ -48,7 +46,7 @@ export const getBookDownloadUrl = (bookId: number): string => {
 
 // Download file by opening in new window/tab
 // This approach doesn't block other requests as it uses a separate browser context
-export const downloadBookFile = (bookId: number, fileName: string): void => {
+export const downloadBookFile = (bookId: number): void => {
   const url = getBookDownloadUrl(bookId)
   
   // Создаем невидимый iframe для скачивания
@@ -128,7 +126,7 @@ api.interceptors.response.use(
 export const authApi = {
   register: (data: UserCreate): Promise<AxiosResponse<User>> => {
     // Convert camelCase to snake_case for backend (currently fields are snake_case, but this ensures future compatibility)
-    const snakeCaseData = toSnakeCaseKeys(data)
+    const snakeCaseData = toSnakeCaseKeys(data as unknown as Record<string, unknown>)
     return api.post('/api/auth/register', snakeCaseData)
   },
 
@@ -189,9 +187,21 @@ export const booksApi = {
   getMy: (params?: { skip?: number; limit?: number }): Promise<AxiosResponse<BookListResponse>> =>
     api.get('/api/books/my', { params }),
 
+  getShared: (params?: BooksQueryParams): Promise<AxiosResponse<BookListResponse>> => {
+    const snakeCaseParams: Record<string, unknown> = {}
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          snakeCaseParams[toSnakeCase(key)] = value
+        }
+      })
+    }
+    return api.get('/api/books/shared', { params: snakeCaseParams })
+  },
+
   create: (data: BookCreate): Promise<AxiosResponse<Book>> => {
     // Convert camelCase to snake_case for backend
-    const snakeCaseData = toSnakeCaseKeys(data)
+    const snakeCaseData = toSnakeCaseKeys(data as unknown as Record<string, unknown>)
     return api.post('/api/books', snakeCaseData)
   },
 
@@ -237,7 +247,7 @@ export const booksApi = {
   delete: (id: number): Promise<AxiosResponse<void>> =>
     api.delete(`/api/books/${id}`),
 
-  getCategories: (): Promise<AxiosResponse<Category[]>> =>
+  getCategories: (): Promise<AxiosResponse<string[]>> =>
     api.get('/api/books/categories'),
 
   getDownloadUrl: (id: number): Promise<AxiosResponse<{ url: string }>> =>
@@ -392,7 +402,7 @@ export const externalApi = {
   // Import book
   importBook: (data: ExternalBookImportRequest): Promise<AxiosResponse<ImportResult>> => {
     // Convert camelCase to snake_case for backend
-    const snakeCaseData = toSnakeCaseKeys(data)
+    const snakeCaseData = toSnakeCaseKeys(data as unknown as Record<string, unknown>)
     return api.post('/api/external/import', snakeCaseData)
   },
 
@@ -401,7 +411,7 @@ export const externalApi = {
     items: ExternalBookImportRequest[]
   ): Promise<AxiosResponse<{ total: number; successful: number; failed: number; results: ImportResult[] }>> => {
     // Convert camelCase to snake_case for each item in the array
-    const snakeCaseItems = items.map(item => toSnakeCaseKeys(item))
+    const snakeCaseItems = items.map(item => toSnakeCaseKeys(item as unknown as Record<string, unknown>))
     return api.post('/api/external/import/bulk', { items: snakeCaseItems })
   },
 }

@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.crud.base import CRUDBase
-from app.core.access import BookStatus
+from app.core.access import BookStatus, BookVisibility
 from app.models.book import Book
 from app.schemas.book import BookCreate, BookUpdate
 
@@ -32,11 +32,14 @@ class CRUDBook(CRUDBase[Book, BookCreate, BookUpdate]):
         skip: int = 0,
         limit: int = 100,
         status: BookStatus | None = None,
+        visibility: BookVisibility | None = None,
     ) -> Sequence[Book]:
         """Get books uploaded by a specific user."""
-        query = select(Book).where(Book.uploaded_by_id == user_id)
+        query = select(Book).options(selectinload(Book.uploaded_by)).where(Book.uploaded_by_id == user_id)
         if status is not None:
             query = query.where(Book.status == status.value)
+        if visibility is not None:
+            query = query.where(Book.visibility == visibility.value)
 
         result = await db.execute(
             query
@@ -51,11 +54,14 @@ class CRUDBook(CRUDBase[Book, BookCreate, BookUpdate]):
         db: AsyncSession,
         user_id: int,
         status: BookStatus | None = None,
+        visibility: BookVisibility | None = None,
     ) -> int:
         """Count books uploaded by a specific user."""
         query = select(func.count()).select_from(Book).where(Book.uploaded_by_id == user_id)
         if status is not None:
             query = query.where(Book.status == status.value)
+        if visibility is not None:
+            query = query.where(Book.visibility == visibility.value)
 
         result = await db.execute(
             query
@@ -69,12 +75,15 @@ class CRUDBook(CRUDBase[Book, BookCreate, BookUpdate]):
         skip: int = 0,
         limit: int = 100,
         status: BookStatus | None = None,
+        visibility: BookVisibility | None = None,
     ) -> Sequence[Book]:
         """Get multiple books with optional status filtering."""
 
-        query = select(Book)
+        query = select(Book).options(selectinload(Book.uploaded_by))
         if status is not None:
             query = query.where(Book.status == status.value)
+        if visibility is not None:
+            query = query.where(Book.visibility == visibility.value)
 
         result = await db.execute(
             query.offset(skip).limit(limit).order_by(Book.created_at.desc())
@@ -86,12 +95,15 @@ class CRUDBook(CRUDBase[Book, BookCreate, BookUpdate]):
         db: AsyncSession,
         *,
         status: BookStatus | None = None,
+        visibility: BookVisibility | None = None,
     ) -> int:
         """Count books with optional status filtering."""
 
         query = select(func.count()).select_from(Book)
         if status is not None:
             query = query.where(Book.status == status.value)
+        if visibility is not None:
+            query = query.where(Book.visibility == visibility.value)
 
         result = await db.execute(query)
         return result.scalar_one()
@@ -106,6 +118,7 @@ class CRUDBook(CRUDBase[Book, BookCreate, BookUpdate]):
         language: str | None = None,
         source: str | None = None,
         status: BookStatus | None = None,
+        visibility: BookVisibility | None = None,
         year_from: int | None = None,
         year_to: int | None = None,
         skip: int = 0,
@@ -141,6 +154,8 @@ class CRUDBook(CRUDBase[Book, BookCreate, BookUpdate]):
                 conditions.append(Book.file_path == "")
         if status:
             conditions.append(Book.status == status.value)
+        if visibility:
+            conditions.append(Book.visibility == visibility.value)
         if year_from:
             conditions.append(Book.published_year >= year_from)
         if year_to:
@@ -154,6 +169,7 @@ class CRUDBook(CRUDBase[Book, BookCreate, BookUpdate]):
         # Get paginated results
         result = await db.execute(
             select(Book)
+            .options(selectinload(Book.uploaded_by))
             .where(*conditions)
             .offset(skip)
             .limit(limit)
@@ -202,6 +218,7 @@ class CRUDBook(CRUDBase[Book, BookCreate, BookUpdate]):
         db: AsyncSession,
         *,
         status: BookStatus | None = None,
+        visibility: BookVisibility | None = None,
         source: str | None = None,
     ) -> int:
         """Count books with optional filters."""
@@ -210,6 +227,8 @@ class CRUDBook(CRUDBase[Book, BookCreate, BookUpdate]):
 
         if status is not None:
             query = query.where(Book.status == status.value)
+        if visibility is not None:
+            query = query.where(Book.visibility == visibility.value)
         if source == "upload":
             query = query.where(Book.file_path != "")
         elif source == "external":
@@ -224,6 +243,7 @@ class CRUDBook(CRUDBase[Book, BookCreate, BookUpdate]):
             select(Book.category)
             .where(Book.category.isnot(None))
             .where(Book.status == BookStatus.PUBLISHED.value)
+            .where(Book.visibility == BookVisibility.PUBLIC.value)
             .distinct()
             .order_by(Book.category)
         )
@@ -235,10 +255,57 @@ class CRUDBook(CRUDBase[Book, BookCreate, BookUpdate]):
             select(Book.language)
             .where(Book.language.isnot(None))
             .where(Book.status == BookStatus.PUBLISHED.value)
+            .where(Book.visibility == BookVisibility.PUBLIC.value)
             .distinct()
             .order_by(Book.language)
         )
         return result.scalars().all()
+
+    async def get_shared_books(
+        self,
+        db: AsyncSession,
+        *,
+        current_user_id: int,
+        skip: int = 0,
+        limit: int = 100,
+        category: str | None = None,
+        author: str | None = None,
+        language: str | None = None,
+        year_from: int | None = None,
+        year_to: int | None = None,
+    ) -> tuple[Sequence[Book], int]:
+        """Get public books uploaded by other users."""
+
+        conditions = [
+            Book.uploaded_by_id != current_user_id,
+            Book.status == BookStatus.PUBLISHED.value,
+            Book.visibility == BookVisibility.PUBLIC.value,
+        ]
+        if category:
+            conditions.append(Book.category == category)
+        if author:
+            conditions.append(Book.author.ilike(f"%{author}%"))
+        if language:
+            conditions.append(Book.language == language)
+        if year_from:
+            conditions.append(Book.published_year >= year_from)
+        if year_to:
+            conditions.append(Book.published_year <= year_to)
+
+        total_result = await db.execute(
+            select(func.count()).select_from(Book).where(*conditions)
+        )
+        total = total_result.scalar_one()
+
+        result = await db.execute(
+            select(Book)
+            .options(selectinload(Book.uploaded_by))
+            .where(*conditions)
+            .offset(skip)
+            .limit(limit)
+            .order_by(Book.created_at.desc())
+        )
+        return result.scalars().all(), total
 
 
 # Singleton instance

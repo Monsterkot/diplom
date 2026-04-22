@@ -55,6 +55,7 @@ export interface Book {
   language: string | null
   category: string | null
   status: BookStatus
+  visibility: BookVisibility
   tags?: string[]
   source?: 'upload' | 'google_books' | 'gutenberg'
   coverPath: string | null
@@ -66,11 +67,13 @@ export interface Book {
   downloadUrl: string | null
   pageCount?: number | null
   uploadedById: number
+  uploadedByUsername?: string | null
   createdAt: string
   updatedAt: string | null
 }
 
 export type BookStatus = 'published' | 'hidden'
+export type BookVisibility = 'private' | 'public'
 
 export interface BookCreate {
   title: string
@@ -81,6 +84,7 @@ export interface BookCreate {
   publishedYear?: number
   language?: string
   category?: string
+  visibility?: BookVisibility
   tags?: string[]
 }
 
@@ -93,6 +97,7 @@ export interface BookUpdate {
   publishedYear?: number
   language?: string
   category?: string
+  visibility?: BookVisibility
   tags?: string[]
 }
 

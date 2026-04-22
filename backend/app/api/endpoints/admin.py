@@ -248,7 +248,7 @@ async def update_book_status(
 
     try:
         search_service = get_search_service()
-        await search_service.update_book_index(updated_book, update_content=False)
+        await search_service.sync_book_visibility(updated_book)
     except Exception:
         pass
 

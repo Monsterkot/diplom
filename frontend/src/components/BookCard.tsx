@@ -28,16 +28,20 @@ function BookCard({ book, viewMode = 'grid', onDelete, onEdit, isDeleting }: Boo
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
   }
 
-  const getSourceBadge = (source: string) => {
+  const getSourceBadge = (source?: string) => {
     const badges: Record<string, { bg: string; text: string; label: string }> = {
       upload: { bg: 'bg-green-100', text: 'text-green-700', label: 'Загружено' },
       google_books: { bg: 'bg-blue-100', text: 'text-blue-700', label: 'Google Books' },
       gutenberg: { bg: 'bg-purple-100', text: 'text-purple-700', label: 'Gutenberg' },
     }
-    return badges[source] || badges.upload
+    const sourceKey = source || 'upload'
+    return badges[sourceKey] || badges.upload
   }
 
   const sourceBadge = getSourceBadge(book.source)
+  const visibilityBadge = book.visibility === 'public'
+    ? { bg: 'bg-emerald-100', text: 'text-emerald-700', label: 'Public' }
+    : { bg: 'bg-slate-100', text: 'text-slate-700', label: 'Private' }
 
   if (viewMode === 'list') {
     return (
@@ -73,6 +77,18 @@ function BookCard({ book, viewMode = 'grid', onDelete, onEdit, isDeleting }: Boo
               {sourceBadge.label}
             </span>
           </div>
+
+          <div className="mt-2">
+            <span className={`inline-flex text-xs px-2 py-1 rounded ${visibilityBadge.bg} ${visibilityBadge.text}`}>
+              {visibilityBadge.label}
+            </span>
+          </div>
+
+          {book.uploadedByUsername && (
+            <p className="text-xs text-gray-500 mt-2">
+              Shared by {book.uploadedByUsername}
+            </p>
+          )}
 
           {book.description && (
             <p className="text-sm text-gray-500 mt-2 line-clamp-2">{book.description}</p>
@@ -232,8 +248,17 @@ function BookCard({ book, viewMode = 'grid', onDelete, onEdit, isDeleting }: Boo
             {book.author}
           </p>
         )}
+
+        {book.uploadedByUsername && (
+          <p className="text-xs text-gray-500 mt-1 truncate">
+            Shared by {book.uploadedByUsername}
+          </p>
+        )}
         
         <div className="flex flex-wrap gap-1 mt-2">
+          <span className={`inline-block text-xs px-2 py-0.5 rounded ${visibilityBadge.bg} ${visibilityBadge.text}`}>
+            {visibilityBadge.label}
+          </span>
           {book.category && (
             <span className="inline-block text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">
               {book.category}

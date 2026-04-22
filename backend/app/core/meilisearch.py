@@ -33,6 +33,7 @@ BOOKS_FILTERABLE_ATTRIBUTES = [
     "content_type",
     "source",
     "status",
+    "visibility",
     "uploaded_by_id",
 ]
 

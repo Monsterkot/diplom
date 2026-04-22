@@ -10,8 +10,9 @@ from loguru import logger
 import io
 import chardet
 
-from app.core.access import BookStatus
+from app.core.access import BookStatus, BookVisibility
 from app.crud.book import book_crud
+from app.models.audit_log import AuditLog
 from app.schemas.book import (
     BookCreate,
     BookListResponse,
@@ -20,12 +21,35 @@ from app.schemas.book import (
     BookFileResponse,
     BookHtmlResponse,
 )
-from app.services.auth import CurrentUser, DBSession, OptionalCurrentUser, is_admin
+from app.services.auth import CurrentUser, DBSession, OptionalCurrentUser, can_manage_books, is_admin
 from app.services.file_service import file_service
 from app.services.search_service import get_search_service
 from app.services.docx_converter import get_docx_converter, ConversionError
 
 router = APIRouter()
+
+
+async def create_audit_log(
+    db: DBSession,
+    *,
+    actor_user_id: int,
+    action: str,
+    entity_type: str,
+    entity_id: int,
+    details: dict | None = None,
+) -> None:
+    """Store book-related audit log entries."""
+
+    db.add(
+        AuditLog(
+            actor_user_id=actor_user_id,
+            action=action,
+            entity_type=entity_type,
+            entity_id=entity_id,
+            details=details,
+        )
+    )
+    await db.flush()
 
 
 def can_manage_book(current_user, book) -> bool:
@@ -37,11 +61,11 @@ def can_manage_book(current_user, book) -> bool:
 def can_view_book(current_user, book) -> bool:
     """Check whether the current user can view the book."""
 
-    if book.status == BookStatus.PUBLISHED.value:
+    if current_user and (book.uploaded_by_id == current_user.id or can_manage_books(current_user)):
         return True
-    if current_user is None:
+    if book.status != BookStatus.PUBLISHED.value:
         return False
-    return can_manage_book(current_user, book)
+    return book.visibility == BookVisibility.PUBLIC.value
 
 
 def detect_and_convert_to_utf8(content: bytes) -> tuple[bytes, str]:
@@ -112,6 +136,7 @@ async def upload_book(
     published_year: Annotated[int | None, Form()] = None,
     language: Annotated[str | None, Form()] = None,
     category: Annotated[str | None, Form()] = None,
+    visibility: Annotated[BookVisibility, Form()] = BookVisibility.PRIVATE,
 ):
     """
     Upload a new book.
@@ -146,6 +171,7 @@ async def upload_book(
         published_year=published_year,
         language=language,
         category=category,
+        visibility=visibility,
     )
 
     book = await book_crud.create_with_file(
@@ -162,7 +188,13 @@ async def upload_book(
     async def index_book_task():
         try:
             search_service = get_search_service()
-            await search_service.index_book(book, file_content, extract_text=True)
+            if (
+                book.status == BookStatus.PUBLISHED.value
+                and book.visibility == BookVisibility.PUBLIC.value
+            ):
+                await search_service.index_book(book, file_content, extract_text=True)
+            else:
+                await search_service.delete_book_from_index(book.id)
             logger.info(f"Successfully indexed book {book.id}")
         except Exception as e:
             logger.error(f"Failed to index book {book.id}: {e}")
@@ -216,6 +248,7 @@ async def get_books(
             language=language,
             source=source,
             status=BookStatus.PUBLISHED,
+            visibility=BookVisibility.PUBLIC,
             year_from=year_from,
             year_to=year_to,
             skip=skip,
@@ -227,10 +260,59 @@ async def get_books(
             skip=skip,
             limit=limit,
             status=BookStatus.PUBLISHED,
+            visibility=BookVisibility.PUBLIC,
         )
-        total = await book_crud.count(db, status=BookStatus.PUBLISHED)
+        total = await book_crud.count(
+            db,
+            status=BookStatus.PUBLISHED,
+            visibility=BookVisibility.PUBLIC,
+        )
 
     # Generate download URLs
+    items = []
+    for book in books:
+        response = BookResponse.model_validate(book)
+        try:
+            response.download_url = await file_service.get_file_url(book.file_path)
+        except Exception:
+            response.download_url = None
+        items.append(response)
+
+    return BookListResponse(
+        items=items,
+        total=total,
+        skip=skip,
+        limit=limit,
+        has_more=(skip + len(items)) < total,
+    )
+
+
+@router.get("/shared", response_model=BookListResponse)
+async def get_shared_books(
+    db: DBSession,
+    current_user: CurrentUser,
+    skip: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    category: str | None = None,
+    author: str | None = None,
+    language: str | None = None,
+    year_from: Annotated[int | None, Query(ge=1000)] = None,
+    year_to: Annotated[int | None, Query(le=2100)] = None,
+):
+    """Get public books uploaded by other users."""
+
+    books, total = await book_crud.get_shared_books(
+        db,
+        current_user_id=current_user.id,
+        skip=skip,
+        limit=limit,
+        category=category,
+        author=author,
+        language=language,
+        year_from=year_from,
+        year_to=year_to,
+    )
+
     items = []
     for book in books:
         response = BookResponse.model_validate(book)
@@ -312,7 +394,7 @@ async def get_book(
     """
     Get book by ID.
     """
-    book = await book_crud.get(db, id=book_id)
+    book = await book_crud.get_with_user(db, id=book_id)
     if not book:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -346,7 +428,7 @@ async def get_book_file(
     - **download**: If true, returns a download URL with Content-Disposition header
     - Returns presigned URL valid for 1 hour
     """
-    book = await book_crud.get(db, id=book_id)
+    book = await book_crud.get_with_user(db, id=book_id)
     if not book:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -399,7 +481,7 @@ async def stream_book_file(
 
     - **download**: If true, forces browser to download the file instead of displaying it
     """
-    book = await book_crud.get(db, id=book_id)
+    book = await book_crud.get_with_user(db, id=book_id)
     if not book:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -457,7 +539,7 @@ async def get_book_html(
     Returns HTML and plain text extracted from the document.
     Only supports DOCX files.
     """
-    book = await book_crud.get(db, id=book_id)
+    book = await book_crud.get_with_user(db, id=book_id)
     if not book:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -524,7 +606,7 @@ async def update_book(
     Only the uploader or superuser can update.
     The search index will be updated automatically.
     """
-    book = await book_crud.get(db, id=book_id)
+    book = await book_crud.get_with_user(db, id=book_id)
     if not book:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -538,13 +620,28 @@ async def update_book(
             detail="Not authorized to update this book",
         )
 
+    previous_visibility = book.visibility
     updated_book = await book_crud.update(db, db_obj=book, obj_in=book_update)
+
+    if book_update.visibility is not None and updated_book.visibility != previous_visibility:
+        await create_audit_log(
+            db,
+            actor_user_id=current_user.id,
+            action="book_visibility_updated",
+            entity_type="book",
+            entity_id=updated_book.id,
+            details={
+                "title": updated_book.title,
+                "previous_visibility": previous_visibility,
+                "new_visibility": updated_book.visibility,
+            },
+        )
 
     # Update search index in background
     async def update_index_task():
         try:
             search_service = get_search_service()
-            await search_service.update_book_index(updated_book, update_content=False)
+            await search_service.sync_book_visibility(updated_book)
             logger.info(f"Successfully updated index for book {book_id}")
         except Exception as e:
             logger.error(f"Failed to update index for book {book_id}: {e}")
@@ -572,7 +669,7 @@ async def delete_book(
     Only the uploader or superuser can delete.
     Also removes the file from storage and search index.
     """
-    book = await book_crud.get(db, id=book_id)
+    book = await book_crud.get_with_user(db, id=book_id)
     if not book:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

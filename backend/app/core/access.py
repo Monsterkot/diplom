@@ -19,6 +19,13 @@ class BookStatus(str, Enum):
     HIDDEN = "hidden"
 
 
+class BookVisibility(str, Enum):
+    """User-controlled visibility for books."""
+
+    PRIVATE = "private"
+    PUBLIC = "public"
+
+
 def is_admin_role(role: str | UserRole | None) -> bool:
     """Check whether a role grants admin access."""
 

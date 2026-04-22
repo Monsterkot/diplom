@@ -29,19 +29,16 @@ function PdfViewer({ url, title }: PdfViewerProps) {
   const [currentPage, setCurrentPage] = useState(1)
   const [scale, setScale] = useState(1.0)
   const [rotation, setRotation] = useState(0)
-  const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   const onDocumentLoadSuccess = useCallback(({ numPages }: { numPages: number }) => {
     setNumPages(numPages)
-    setIsLoading(false)
     setError(null)
   }, [])
 
   const onDocumentLoadError = useCallback((error: Error) => {
     console.error('Error loading PDF:', error)
     setError('Не удалось загрузить документ')
-    setIsLoading(false)
   }, [])
 
   const goToPage = (page: number) => {
