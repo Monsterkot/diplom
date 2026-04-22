@@ -95,7 +95,7 @@ function FileUploader({
       pdf: 'text-red-500',
       epub: 'text-green-500',
       txt: 'text-gray-500',
-      docx: 'text-blue-500',
+      docx: 'text-sky-500',
     }
     return colors[ext || ''] || 'text-gray-400'
   }

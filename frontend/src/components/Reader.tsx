@@ -129,7 +129,7 @@ export function FileTypeInfo({ contentType, fileName }: { contentType: string; f
       return { icon: FileText, label: 'Text File', color: 'text-gray-500' }
     }
     if (contentType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || fileName?.endsWith('.docx')) {
-      return { icon: FileText, label: 'Word Document', color: 'text-blue-500' }
+      return { icon: FileText, label: 'Word Document', color: 'text-sky-500' }
     }
     return { icon: FileText, label: 'Document', color: 'text-gray-400' }
   }
