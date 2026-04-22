@@ -1,5 +1,6 @@
 import axios, { AxiosError, AxiosResponse } from 'axios'
 import type {
+  AdminServiceCredentialsResponse,
   AdminStats,
   AuditLogEntry,
   Book,
@@ -442,6 +443,9 @@ export const adminApi = {
 
   getAuditLogs: (params?: { skip?: number; limit?: number }): Promise<AxiosResponse<PaginatedResponse<AuditLogEntry>>> =>
     api.get('/api/admin/audit-logs', { params }),
+
+  getServiceCredentials: (): Promise<AxiosResponse<AdminServiceCredentialsResponse>> =>
+    api.get('/api/admin/service-credentials'),
 }
 
 // ============ Error helpers ============

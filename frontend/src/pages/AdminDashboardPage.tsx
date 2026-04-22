@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Shield, Users, BookOpen, EyeOff, Upload, Globe, ClipboardList } from 'lucide-react'
+import { Shield, Users, BookOpen, EyeOff, Upload, Globe, ClipboardList, KeyRound } from 'lucide-react'
 import { adminApi, getErrorMessage } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -72,6 +72,15 @@ function AdminDashboardPage() {
               <h2 className="text-lg font-semibold text-gray-900">Audit Log</h2>
             </div>
             <p className="text-gray-600 mt-2">Review role changes, blocking, moderation, and book deletions.</p>
+          </Link>
+        )}
+        {isAdmin && (
+          <Link to="/admin/service-credentials" className="bg-white border rounded-xl p-5 hover:border-blue-300 transition-colors">
+            <div className="flex items-center gap-3">
+              <KeyRound className="w-5 h-5 text-blue-600" />
+              <h2 className="text-lg font-semibold text-gray-900">Service Access</h2>
+            </div>
+            <p className="text-gray-600 mt-2">View credentials and entry points for MinIO, PostgreSQL, Meilisearch, and Redis.</p>
           </Link>
         )}
       </div>

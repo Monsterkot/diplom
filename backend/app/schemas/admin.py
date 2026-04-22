@@ -66,6 +66,26 @@ class AdminStatsResponse(CamelCaseModel):
     generated_at: datetime = Field(default_factory=datetime.utcnow)
 
 
+class ServiceCredentialResponse(CamelCaseModel):
+    """Access details for an infrastructure service."""
+
+    service_name: str
+    description: str
+    access_type: str
+    url: str | None = None
+    username: str | None = None
+    password: str | None = None
+    database: str | None = None
+    notes: str | None = None
+
+
+class AdminServiceCredentialsResponse(CamelCaseModel):
+    """Admin response with service access details."""
+
+    items: list[ServiceCredentialResponse]
+    generated_at: datetime = Field(default_factory=datetime.utcnow)
+
+
 class AuditLogResponse(CamelCaseModel):
     """Audit log entry for admin responses."""
 

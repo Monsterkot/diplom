@@ -380,6 +380,22 @@ export interface AdminStats {
   generatedAt: string
 }
 
+export interface ServiceCredential {
+  serviceName: string
+  description: string
+  accessType: string
+  url: string | null
+  username: string | null
+  password: string | null
+  database: string | null
+  notes: string | null
+}
+
+export interface AdminServiceCredentialsResponse {
+  items: ServiceCredential[]
+  generatedAt: string
+}
+
 export interface AuditLogEntry {
   id: number
   action: string

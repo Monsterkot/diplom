@@ -15,6 +15,35 @@ from app.schemas.book import BookCreate, BookUpdate
 class CRUDBook(CRUDBase[Book, BookCreate, BookUpdate]):
     """CRUD operations for Book model."""
 
+    @staticmethod
+    def _apply_common_filters(
+        conditions: list,
+        *,
+        category: str | None = None,
+        author: str | None = None,
+        language: str | None = None,
+        source: str | None = None,
+        year_from: int | None = None,
+        year_to: int | None = None,
+    ) -> list:
+        """Apply reusable book filters to a conditions list."""
+
+        if category:
+            conditions.append(Book.category == category)
+        if author:
+            conditions.append(Book.author.ilike(f"%{author}%"))
+        if language:
+            conditions.append(Book.language == language)
+        if source == "upload":
+            conditions.append(Book.file_path != "")
+        elif source == "external":
+            conditions.append(Book.file_path == "")
+        if year_from:
+            conditions.append(Book.published_year >= year_from)
+        if year_to:
+            conditions.append(Book.published_year <= year_to)
+        return conditions
+
     async def get_with_user(self, db: AsyncSession, id: int) -> Book | None:
         """Get book by ID with user relationship loaded."""
         result = await db.execute(
@@ -138,28 +167,19 @@ class CRUDBook(CRUDBase[Book, BookCreate, BookUpdate]):
             )
         ]
 
-        # Apply filters
-        if category:
-            conditions.append(Book.category == category)
-        if author:
-            conditions.append(Book.author.ilike(f"%{author}%"))
-        if language:
-            conditions.append(Book.language == language)
-        if source:
-            if source == "upload":
-                # Local books have file_path set
-                conditions.append(Book.file_path != "")
-            elif source == "external":
-                # Imported books have empty file_path
-                conditions.append(Book.file_path == "")
+        self._apply_common_filters(
+            conditions,
+            category=category,
+            author=author,
+            language=language,
+            source=source,
+            year_from=year_from,
+            year_to=year_to,
+        )
         if status:
             conditions.append(Book.status == status.value)
         if visibility:
             conditions.append(Book.visibility == visibility.value)
-        if year_from:
-            conditions.append(Book.published_year >= year_from)
-        if year_to:
-            conditions.append(Book.published_year <= year_to)
 
         # Count total matching records
         count_query = select(func.count()).select_from(Book).where(*conditions)
@@ -281,16 +301,69 @@ class CRUDBook(CRUDBase[Book, BookCreate, BookUpdate]):
             Book.status == BookStatus.PUBLISHED.value,
             Book.visibility == BookVisibility.PUBLIC.value,
         ]
-        if category:
-            conditions.append(Book.category == category)
-        if author:
-            conditions.append(Book.author.ilike(f"%{author}%"))
-        if language:
-            conditions.append(Book.language == language)
-        if year_from:
-            conditions.append(Book.published_year >= year_from)
-        if year_to:
-            conditions.append(Book.published_year <= year_to)
+        self._apply_common_filters(
+            conditions,
+            category=category,
+            author=author,
+            language=language,
+            year_from=year_from,
+            year_to=year_to,
+        )
+
+        total_result = await db.execute(
+            select(func.count()).select_from(Book).where(*conditions)
+        )
+        total = total_result.scalar_one()
+
+        result = await db.execute(
+            select(Book)
+            .options(selectinload(Book.uploaded_by))
+            .where(*conditions)
+            .offset(skip)
+            .limit(limit)
+            .order_by(Book.created_at.desc())
+        )
+        return result.scalars().all(), total
+
+    async def get_library_books(
+        self,
+        db: AsyncSession,
+        *,
+        current_user_id: int,
+        skip: int = 0,
+        limit: int = 100,
+        category: str | None = None,
+        author: str | None = None,
+        language: str | None = None,
+        source: str | None = None,
+        year_from: int | None = None,
+        year_to: int | None = None,
+    ) -> tuple[Sequence[Book], int]:
+        """
+        Get the authenticated user's library feed.
+
+        Includes all books uploaded by the current user plus public published
+        books uploaded by other users.
+        """
+
+        visibility_scope = or_(
+            Book.uploaded_by_id == current_user_id,
+            (
+                (Book.uploaded_by_id != current_user_id)
+                & (Book.status == BookStatus.PUBLISHED.value)
+                & (Book.visibility == BookVisibility.PUBLIC.value)
+            ),
+        )
+        conditions = [visibility_scope]
+        self._apply_common_filters(
+            conditions,
+            category=category,
+            author=author,
+            language=language,
+            source=source,
+            year_from=year_from,
+            year_to=year_to,
+        )
 
         total_result = await db.execute(
             select(func.count()).select_from(Book).where(*conditions)

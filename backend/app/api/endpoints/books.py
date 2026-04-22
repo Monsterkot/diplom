@@ -216,6 +216,7 @@ async def upload_book(
 @router.get("/", response_model=BookListResponse)
 async def get_books(
     db: DBSession,
+    current_user: OptionalCurrentUser,
     skip: Annotated[int, Query(ge=0)] = 0,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     category: str | None = None,
@@ -237,36 +238,50 @@ async def get_books(
     - **year_from**: Filter by publication year (minimum)
     - **year_to**: Filter by publication year (maximum)
     """
-    # Get books with optional filters
-    if category or author or language or source or year_from or year_to:
-        # Use search with empty query for filtering
-        books, total = await book_crud.search(
+    if current_user:
+        books, total = await book_crud.get_library_books(
             db,
-            query="",
+            current_user_id=current_user.id,
+            skip=skip,
+            limit=limit,
             category=category,
             author=author,
             language=language,
             source=source,
-            status=BookStatus.PUBLISHED,
-            visibility=BookVisibility.PUBLIC,
             year_from=year_from,
             year_to=year_to,
-            skip=skip,
-            limit=limit,
         )
     else:
-        books = await book_crud.get_multi(
-            db,
-            skip=skip,
-            limit=limit,
-            status=BookStatus.PUBLISHED,
-            visibility=BookVisibility.PUBLIC,
-        )
-        total = await book_crud.count(
-            db,
-            status=BookStatus.PUBLISHED,
-            visibility=BookVisibility.PUBLIC,
-        )
+        # Get books with optional filters
+        if category or author or language or source or year_from or year_to:
+            # Use search with empty query for filtering
+            books, total = await book_crud.search(
+                db,
+                query="",
+                category=category,
+                author=author,
+                language=language,
+                source=source,
+                status=BookStatus.PUBLISHED,
+                visibility=BookVisibility.PUBLIC,
+                year_from=year_from,
+                year_to=year_to,
+                skip=skip,
+                limit=limit,
+            )
+        else:
+            books = await book_crud.get_multi(
+                db,
+                skip=skip,
+                limit=limit,
+                status=BookStatus.PUBLISHED,
+                visibility=BookVisibility.PUBLIC,
+            )
+            total = await book_crud.count(
+                db,
+                status=BookStatus.PUBLISHED,
+                visibility=BookVisibility.PUBLIC,
+            )
 
     # Generate download URLs
     items = []

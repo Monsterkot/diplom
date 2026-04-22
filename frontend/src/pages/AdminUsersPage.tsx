@@ -1,12 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Shield, UserX, UserCheck } from 'lucide-react'
 import { adminApi, getErrorMessage } from '../services/api'
+import { useAuth } from '../contexts/AuthContext'
 import type { User, UserRole } from '../types'
 
 const roleOptions: UserRole[] = ['user', 'moderator', 'admin']
 
 function AdminUsersPage() {
   const queryClient = useQueryClient()
+  const { user: currentUser } = useAuth()
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['admin-users'],
@@ -54,6 +56,7 @@ function AdminUsersPage() {
             <tbody className="divide-y divide-gray-100">
               {users.map((user: User) => {
                 const blockTarget = !user.isBlocked
+                const isCurrentUser = currentUser?.id === user.id
 
                 return (
                   <tr key={user.id}>
@@ -88,7 +91,9 @@ function AdminUsersPage() {
                           <select
                             value={user.role}
                             onChange={(e) => updateRoleMutation.mutate({ userId: user.id, role: e.target.value as UserRole })}
-                            className="px-3 py-2 text-sm border rounded-lg bg-white"
+                            disabled={isCurrentUser}
+                            className="px-3 py-2 text-sm border rounded-lg bg-white disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
+                            title={isCurrentUser ? 'You cannot change your own role' : undefined}
                           >
                             {roleOptions.map((role) => (
                               <option key={role} value={role}>

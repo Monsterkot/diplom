@@ -5,18 +5,22 @@ from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import func, select
+from sqlalchemy.engine import make_url
 from sqlalchemy.orm import selectinload
 
 from app.core.access import BookStatus, UserRole
+from app.core.config import settings
 from app.crud.book import book_crud
 from app.crud.user import user_crud
 from app.models.audit_log import AuditLog
 from app.schemas.admin import (
+    AdminServiceCredentialsResponse,
     AdminAuditLogsListResponse,
     AdminBooksListResponse,
     AdminStatsResponse,
     AdminUsersListResponse,
     AuditLogResponse,
+    ServiceCredentialResponse,
     UpdateBookStatusRequest,
     UpdateUserBlockRequest,
     UpdateUserRoleRequest,
@@ -68,6 +72,29 @@ def serialize_audit_log(entry: AuditLog) -> AuditLogResponse:
     )
 
 
+def _local_url_from_internal(raw_url: str) -> str:
+    """Convert internal Docker URLs into localhost-friendly access URLs."""
+
+    parsed = make_url(raw_url)
+    drivername = parsed.drivername.split("+", 1)[0]
+    host = parsed.host or "localhost"
+    port = parsed.port
+
+    if host in {"postgres", "meilisearch", "redis", "minio", "backend", "frontend"}:
+        host = "localhost"
+
+    auth = ""
+    if parsed.username:
+        auth = parsed.username
+        if parsed.password:
+            auth += ":***"
+        auth += "@"
+
+    database = f"/{parsed.database}" if parsed.database else ""
+
+    return f"{drivername}://{auth}{host}{f':{port}' if port else ''}{database}"
+
+
 @router.get("/stats", response_model=AdminStatsResponse)
 async def get_admin_stats(
     db: DBSession,
@@ -87,6 +114,63 @@ async def get_admin_stats(
         uploaded_books=await book_crud.count_filtered(db, source="upload"),
         imported_books=await book_crud.count_filtered(db, source="external"),
     )
+
+
+@router.get("/service-credentials", response_model=AdminServiceCredentialsResponse)
+async def get_service_credentials(
+    current_user: CurrentAdmin,
+):
+    """Get infrastructure access credentials for administrators."""
+
+    _ = current_user
+    database_url = make_url(settings.database_url)
+
+    minio_public_host = settings.minio_public_endpoint.split(":", 1)[0]
+    minio_console_url = f"http://{minio_public_host}:9001"
+    minio_api_scheme = "https" if settings.minio_public_secure else "http"
+    minio_api_url = f"{minio_api_scheme}://{settings.minio_public_endpoint}"
+
+    items = [
+        ServiceCredentialResponse(
+            service_name="MinIO Console",
+            description="Object storage web console for files and covers.",
+            access_type="web",
+            url=minio_console_url,
+            username=settings.minio_access_key,
+            password=settings.minio_secret_key,
+            notes=f"S3 API endpoint: {minio_api_url}. Bucket: {settings.minio_bucket}.",
+        ),
+        ServiceCredentialResponse(
+            service_name="Meilisearch",
+            description="Full-text search service.",
+            access_type="api_key",
+            url=_local_url_from_internal(settings.meili_url),
+            password=settings.meili_master_key,
+            notes="Use the master key for API requests or dashboard access.",
+        ),
+        ServiceCredentialResponse(
+            service_name="PostgreSQL",
+            description="Primary application database.",
+            access_type="database",
+            url=_local_url_from_internal(settings.database_url),
+            username=database_url.username,
+            password=database_url.password,
+            database=database_url.database,
+            notes="Connect using a PostgreSQL client such as DBeaver, TablePlus, or psql.",
+        ),
+        ServiceCredentialResponse(
+            service_name="Redis",
+            description="Broker and storage for background jobs.",
+            access_type="redis",
+            url=_local_url_from_internal(settings.redis_url),
+            notes=(
+                f"Celery broker: {_local_url_from_internal(settings.celery_broker_url)}. "
+                f"Celery results: {_local_url_from_internal(settings.celery_result_backend)}."
+            ),
+        ),
+    ]
+
+    return AdminServiceCredentialsResponse(items=items)
 
 
 @router.get("/users", response_model=AdminUsersListResponse)
@@ -123,8 +207,8 @@ async def update_user_role(
     user = await user_crud.get(db, id=user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    if user.id == current_user.id and payload.role != UserRole.ADMIN:
-        raise HTTPException(status_code=400, detail="You cannot remove your own admin role")
+    if user.id == current_user.id:
+        raise HTTPException(status_code=400, detail="You cannot change your own role")
 
     user.role = payload.role.value
     user.is_superuser = payload.role == UserRole.ADMIN
@@ -223,7 +307,7 @@ async def update_book_status(
 ):
     """Update a book visibility status."""
 
-    book = await book_crud.get(db, id=book_id)
+    book = await book_crud.get_with_user(db, id=book_id)
     if not book:
         raise HTTPException(status_code=404, detail="Book not found")
 
@@ -252,9 +336,13 @@ async def update_book_status(
     except Exception:
         pass
 
-    response = BookResponse.model_validate(updated_book)
+    refreshed_book = await book_crud.get_with_user(db, id=updated_book.id)
+    if not refreshed_book:
+        raise HTTPException(status_code=404, detail="Book not found after update")
+
+    response = BookResponse.model_validate(refreshed_book)
     try:
-        response.download_url = await file_service.get_file_url(updated_book.file_path)
+        response.download_url = await file_service.get_file_url(refreshed_book.file_path)
     except Exception:
         response.download_url = None
     return response

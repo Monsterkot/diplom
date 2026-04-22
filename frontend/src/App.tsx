@@ -14,6 +14,7 @@ import AdminDashboardPage from './pages/AdminDashboardPage'
 import AdminUsersPage from './pages/AdminUsersPage'
 import AdminBooksPage from './pages/AdminBooksPage'
 import AdminAuditLogsPage from './pages/AdminAuditLogsPage'
+import AdminServiceCredentialsPage from './pages/AdminServiceCredentialsPage'
 
 function App() {
   return (
@@ -67,6 +68,14 @@ function App() {
             element={
               <ProtectedRoute requiredRole="admin">
                 <AdminAuditLogsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="admin/service-credentials"
+            element={
+              <ProtectedRoute requiredRole="admin">
+                <AdminServiceCredentialsPage />
               </ProtectedRoute>
             }
           />
