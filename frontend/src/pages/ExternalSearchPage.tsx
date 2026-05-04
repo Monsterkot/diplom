@@ -28,6 +28,22 @@ const SOURCE_COLORS: Record<ExternalSource, string> = {
   google_books: 'bg-blue-100 text-blue-700',
 }
 
+const getAvailabilityLabel = (book: ExternalBookSearchResult) => {
+  if (book.canDownload) {
+    return `File available${book.downloadFormats.length ? `: ${book.downloadFormats.join(', ')}` : ''}`
+  }
+  if (book.buyLink) {
+    return 'Paid / card only'
+  }
+  if (book.previewLink || book.webReaderLink) {
+    return 'Preview / card only'
+  }
+  return 'Card only'
+}
+
+const getImportLabel = (book: ExternalBookSearchResult) =>
+  book.canDownload ? 'Add card with file link' : 'Add card'
+
 function ExternalSearchPage() {
   const queryClient = useQueryClient()
   const [query, setQuery] = useState('')
@@ -252,7 +268,7 @@ function ExternalSearchPage() {
           <h2 className="text-xl font-medium text-gray-700 mb-2">Search External Libraries</h2>
           <p className="text-gray-500 max-w-md mx-auto">
             Enter a search term above to find books from Google Books.
-            You can import them to your local library for offline access.
+            Available files are rare; most paid books can be saved as library cards with Google links.
           </p>
         </div>
       )}
@@ -334,6 +350,12 @@ function ExternalBookCard({ book, onViewDetails, onImport, isImporting }: Extern
                 {book.publishedDate.substring(0, 4)}
               </span>
             )}
+
+            <span className={`px-2 py-0.5 rounded text-xs ${
+              book.canDownload ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+            }`}>
+              {getAvailabilityLabel(book)}
+            </span>
           </div>
         </div>
       </div>
@@ -364,7 +386,7 @@ function ExternalBookCard({ book, onViewDetails, onImport, isImporting }: Extern
             ) : (
               <Download className="h-4 w-4" />
             )}
-            {isImporting ? 'Importing...' : 'Import'}
+            {isImporting ? 'Importing...' : getImportLabel(book)}
           </button>
         )}
       </div>

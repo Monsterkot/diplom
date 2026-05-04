@@ -185,5 +185,54 @@ class ExternalBook(Base):
             return ", ".join(self.authors)
         return ""
 
+    @property
+    def access_info(self) -> dict[str, Any]:
+        """Google Books access information from cached metadata."""
+
+        return (self.metadata_json or {}).get("accessInfo", {})
+
+    @property
+    def sale_info(self) -> dict[str, Any]:
+        """Google Books sale information from cached metadata."""
+
+        return (self.metadata_json or {}).get("saleInfo", {})
+
+    @property
+    def web_reader_link(self) -> str | None:
+        return self.access_info.get("webReaderLink")
+
+    @property
+    def buy_link(self) -> str | None:
+        return self.sale_info.get("buyLink")
+
+    @property
+    def viewability(self) -> str | None:
+        return self.access_info.get("viewability")
+
+    @property
+    def access_view_status(self) -> str | None:
+        return self.access_info.get("accessViewStatus")
+
+    @property
+    def public_domain(self) -> bool:
+        return bool(self.access_info.get("publicDomain", False))
+
+    @property
+    def embeddable(self) -> bool:
+        return bool(self.access_info.get("embeddable", False))
+
+    @property
+    def download_formats(self) -> list[str]:
+        formats = []
+        for file_format in ("pdf", "epub"):
+            format_info = self.access_info.get(file_format, {})
+            if format_info.get("isAvailable") and format_info.get("downloadLink"):
+                formats.append(file_format.upper())
+        return formats
+
+    @property
+    def can_download(self) -> bool:
+        return bool(self.download_url or self.download_formats)
+
     def __repr__(self) -> str:
         return f"<ExternalBook(id={self.id}, source={self.source}, title={self.title})>"

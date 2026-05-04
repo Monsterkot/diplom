@@ -7,7 +7,6 @@ import {
   Building,
   Tag,
   Star,
-  ExternalLink,
   Download,
   Check,
   Loader2,
@@ -31,6 +30,19 @@ const SOURCE_LABELS: Record<ExternalSource, string> = {
 
 const SOURCE_COLORS: Record<ExternalSource, string> = {
   google_books: 'bg-blue-100 text-blue-700',
+}
+
+const getAvailabilityLabel = (book: ExternalBookSearchResult) => {
+  if (book.canDownload) {
+    return `File available${book.downloadFormats.length ? `: ${book.downloadFormats.join(', ')}` : ''}`
+  }
+  if (book.buyLink) {
+    return 'Paid / card only'
+  }
+  if (book.previewLink || book.webReaderLink) {
+    return 'Preview / card only'
+  }
+  return 'Card only'
 }
 
 function BookPreviewModal({
@@ -93,6 +105,11 @@ function BookPreviewModal({
                 Imported
               </span>
             )}
+            <span className={`px-2 py-1 rounded text-sm ${
+              book.canDownload ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+            }`}>
+              {getAvailabilityLabel(book)}
+            </span>
           </div>
           <button
             onClick={onClose}
@@ -217,17 +234,6 @@ function BookPreviewModal({
         {/* Footer */}
         <div className="flex items-center justify-between p-4 border-t bg-gray-50">
           <div className="flex items-center gap-3">
-            {book.previewLink && (
-              <a
-                href={book.previewLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900"
-              >
-                <ExternalLink className="h-4 w-4" />
-                Preview
-              </a>
-            )}
             {book.infoLink && (
               <a
                 href={book.infoLink}
@@ -268,7 +274,7 @@ function BookPreviewModal({
                 ) : (
                   <>
                     <Download className="h-5 w-5" />
-                    Import to Library
+                    {book.canDownload ? 'Add card with file link' : 'Add card'}
                   </>
                 )}
               </button>

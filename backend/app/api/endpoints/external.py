@@ -39,6 +39,46 @@ router = APIRouter(prefix="/external", tags=["external"])
 DBSession = Annotated[AsyncSession, Depends(get_db)]
 
 
+def build_external_search_result(
+    item: ExternalBookResult,
+    *,
+    is_imported: bool = False,
+    imported_book_id: int | None = None,
+) -> ExternalBookSearchResult:
+    """Convert service result to API search schema with availability data."""
+
+    return ExternalBookSearchResult(
+        external_id=item.external_id,
+        source=ExternalSourceEnum(item.source.value),
+        title=item.title,
+        authors=item.authors,
+        description=item.description,
+        isbn_10=item.isbn_10,
+        isbn_13=item.isbn_13,
+        publisher=item.publisher,
+        published_date=item.published_date,
+        page_count=item.page_count,
+        categories=item.categories,
+        language=item.language,
+        thumbnail_url=item.thumbnail_url,
+        preview_link=item.preview_link,
+        info_link=item.info_link,
+        web_reader_link=item.web_reader_link,
+        buy_link=item.buy_link,
+        download_url=item.download_url,
+        can_download=item.can_download,
+        download_formats=item.download_formats,
+        viewability=item.viewability,
+        access_view_status=item.access_view_status,
+        public_domain=item.public_domain,
+        embeddable=item.embeddable,
+        average_rating=item.average_rating,
+        ratings_count=item.ratings_count,
+        is_imported=is_imported,
+        imported_book_id=imported_book_id,
+    )
+
+
 # ============ Sources Endpoint ============
 
 @router.get("/sources", response_model=SourcesListResponse)
@@ -137,24 +177,8 @@ async def search_external_books(
         items = []
         for item in search_response.items:
             import_info = imported_map.get(item.external_id, {})
-            items.append(ExternalBookSearchResult(
-                external_id=item.external_id,
-                source=ExternalSourceEnum(item.source.value),
-                title=item.title,
-                authors=item.authors,
-                description=item.description,
-                isbn_10=item.isbn_10,
-                isbn_13=item.isbn_13,
-                publisher=item.publisher,
-                published_date=item.published_date,
-                page_count=item.page_count,
-                categories=item.categories,
-                language=item.language,
-                thumbnail_url=item.thumbnail_url,
-                preview_link=item.preview_link,
-                info_link=item.info_link,
-                average_rating=item.average_rating,
-                ratings_count=item.ratings_count,
+            items.append(build_external_search_result(
+                item,
                 is_imported=import_info.get("is_imported", False),
                 imported_book_id=import_info.get("imported_book_id"),
             ))
@@ -220,24 +244,8 @@ async def search_single_source(
     items = []
     for item in search_response.items:
         import_info = imported_map.get(item.external_id, {})
-        items.append(ExternalBookSearchResult(
-            external_id=item.external_id,
-            source=ExternalSourceEnum(item.source.value),
-            title=item.title,
-            authors=item.authors,
-            description=item.description,
-            isbn_10=item.isbn_10,
-            isbn_13=item.isbn_13,
-            publisher=item.publisher,
-            published_date=item.published_date,
-            page_count=item.page_count,
-            categories=item.categories,
-            language=item.language,
-            thumbnail_url=item.thumbnail_url,
-            preview_link=item.preview_link,
-            info_link=item.info_link,
-            average_rating=item.average_rating,
-            ratings_count=item.ratings_count,
+        items.append(build_external_search_result(
+            item,
             is_imported=import_info.get("is_imported", False),
             imported_book_id=import_info.get("imported_book_id"),
         ))
@@ -284,24 +292,8 @@ async def get_book_details(
     result = await db.execute(stmt)
     existing = result.scalar_one_or_none()
 
-    return ExternalBookSearchResult(
-        external_id=book_data.external_id,
-        source=ExternalSourceEnum(book_data.source.value),
-        title=book_data.title,
-        authors=book_data.authors,
-        description=book_data.description,
-        isbn_10=book_data.isbn_10,
-        isbn_13=book_data.isbn_13,
-        publisher=book_data.publisher,
-        published_date=book_data.published_date,
-        page_count=book_data.page_count,
-        categories=book_data.categories,
-        language=book_data.language,
-        thumbnail_url=book_data.thumbnail_url,
-        preview_link=book_data.preview_link,
-        info_link=book_data.info_link,
-        average_rating=book_data.average_rating,
-        ratings_count=book_data.ratings_count,
+    return build_external_search_result(
+        book_data,
         is_imported=existing.is_imported if existing else False,
         imported_book_id=existing.imported_book_id if existing else None,
     )
@@ -333,7 +325,7 @@ async def import_external_book(
     result = await db.execute(stmt)
     existing = result.scalar_one_or_none()
 
-    if existing and existing.is_imported:
+    if existing and existing.is_imported and existing.imported_book_id:
         return ImportResult(
             external_id=request.external_id,
             source=request.source,
@@ -387,18 +379,16 @@ async def import_external_book(
         existing.ratings_count = book_data.ratings_count
         existing.preview_link = book_data.preview_link
         existing.info_link = book_data.info_link
+        existing.download_url = book_data.download_url
         existing.metadata_json = book_data.raw_metadata
         existing.is_imported = True
         existing.imported_by_id = current_user.id
         existing.imported_at = datetime.utcnow()
         existing.last_fetched_at = datetime.utcnow()
-
-        await db.commit()
-        await db.refresh(existing)
-        external_book_id = existing.id
+        external_book = existing
     else:
         # Create new record
-        new_book = ExternalBook(
+        external_book = ExternalBook(
             source=request.source.value,
             external_id=request.external_id,
             title=request.title or book_data.title,
@@ -417,6 +407,7 @@ async def import_external_book(
             ratings_count=book_data.ratings_count,
             preview_link=book_data.preview_link,
             info_link=book_data.info_link,
+            download_url=book_data.download_url,
             metadata_json=book_data.raw_metadata,
             is_imported=True,
             imported_by_id=current_user.id,
@@ -424,18 +415,22 @@ async def import_external_book(
             last_fetched_at=datetime.utcnow(),
         )
 
-        db.add(new_book)
-        await db.commit()
-        await db.refresh(new_book)
-        external_book_id = new_book.id
+        db.add(external_book)
+        await db.flush()
 
-    # Also create a record in the local books table so it appears in the library
-    # Check if already exists by external_id
-    local_book_stmt = select(Book).where(Book.title == (request.title or book_data.title)).where(
-        Book.uploaded_by_id == current_user.id
-    )
-    local_book_result = await db.execute(local_book_stmt)
-    local_book = local_book_result.scalar_one_or_none()
+    # Also create a record in the local books table so it appears in the library.
+    local_book = None
+    if external_book.imported_book_id:
+        local_book = await db.get(Book, external_book.imported_book_id)
+
+    if not local_book:
+        local_book_stmt = select(Book).where(Book.title == (request.title or book_data.title)).where(
+            Book.uploaded_by_id == current_user.id
+        ).where(
+            Book.file_path == ""
+        )
+        local_book_result = await db.execute(local_book_stmt)
+        local_book = local_book_result.scalar_one_or_none()
 
     if not local_book:
         # Extract authors list for the author field
@@ -460,14 +455,23 @@ async def import_external_book(
         )
 
         db.add(local_book)
-        await db.commit()
+
+    await db.flush()
+
+    external_book.imported_book_id = local_book.id
+    external_book.is_imported = True
+    external_book.imported_by_id = current_user.id
+    external_book.imported_at = external_book.imported_at or datetime.utcnow()
+    external_book.last_fetched_at = datetime.utcnow()
+    await db.commit()
+    await db.refresh(external_book)
 
     return ImportResult(
         external_id=request.external_id,
         source=request.source,
         success=True,
-        message="Book imported successfully",
-        external_book_id=external_book_id,
+        message="Book added to library as a Google Books card",
+        external_book_id=external_book.id,
     )
 
 

@@ -33,6 +33,15 @@ class ExternalBookResult(BaseModel):
     thumbnail_url: str | None = None
     preview_link: str | None = None
     info_link: str | None = None
+    web_reader_link: str | None = None
+    buy_link: str | None = None
+    download_url: str | None = None
+    can_download: bool = False
+    download_formats: list[str] = Field(default_factory=list)
+    viewability: str | None = None
+    access_view_status: str | None = None
+    public_domain: bool = False
+    embeddable: bool = False
     average_rating: float | None = None
     ratings_count: int | None = None
     maturity_rating: str | None = None
@@ -272,6 +281,8 @@ class ExternalApisService:
         """Parse Google Books API item into ExternalBookResult."""
         try:
             volume_info = item.get("volumeInfo", {})
+            access_info = item.get("accessInfo", {})
+            sale_info = item.get("saleInfo", {})
 
             # Extract ISBNs
             isbn_10 = None
@@ -296,6 +307,15 @@ class ExternalApisService:
             if thumbnail_url and thumbnail_url.startswith("http://"):
                 thumbnail_url = thumbnail_url.replace("http://", "https://")
 
+            download_formats = []
+            download_url = None
+            for file_format in ("pdf", "epub"):
+                format_info = access_info.get(file_format, {})
+                link = format_info.get("downloadLink")
+                if format_info.get("isAvailable") and link:
+                    download_formats.append(file_format.upper())
+                    download_url = download_url or link
+
             return ExternalBookResult(
                 external_id=item.get("id", ""),
                 source=ExternalSource.GOOGLE_BOOKS,
@@ -312,6 +332,15 @@ class ExternalApisService:
                 thumbnail_url=thumbnail_url,
                 preview_link=volume_info.get("previewLink"),
                 info_link=volume_info.get("infoLink"),
+                web_reader_link=access_info.get("webReaderLink"),
+                buy_link=sale_info.get("buyLink"),
+                download_url=download_url,
+                can_download=bool(download_formats),
+                download_formats=download_formats,
+                viewability=access_info.get("viewability"),
+                access_view_status=access_info.get("accessViewStatus"),
+                public_domain=bool(access_info.get("publicDomain", False)),
+                embeddable=bool(access_info.get("embeddable", False)),
                 average_rating=volume_info.get("averageRating"),
                 ratings_count=volume_info.get("ratingsCount"),
                 maturity_rating=volume_info.get("maturityRating"),

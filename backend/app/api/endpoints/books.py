@@ -7,12 +7,14 @@ from urllib.parse import quote
 from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.responses import Response, StreamingResponse
 from loguru import logger
+from sqlalchemy import select
 import io
 import chardet
 
 from app.core.access import BookStatus, BookVisibility
 from app.crud.book import book_crud
 from app.models.audit_log import AuditLog
+from app.models.external_book import ExternalBook
 from app.schemas.book import (
     BookCreate,
     BookListResponse,
@@ -27,6 +29,44 @@ from app.services.search_service import get_search_service
 from app.services.docx_converter import get_docx_converter, ConversionError
 
 router = APIRouter()
+
+
+async def get_external_books_by_local_ids(
+    db: DBSession,
+    book_ids: list[int],
+) -> dict[int, ExternalBook]:
+    """Load external metadata for imported Google Books library cards."""
+
+    if not book_ids:
+        return {}
+
+    result = await db.execute(
+        select(ExternalBook).where(ExternalBook.imported_book_id.in_(book_ids))
+    )
+    return {
+        external_book.imported_book_id: external_book
+        for external_book in result.scalars().all()
+        if external_book.imported_book_id is not None
+    }
+
+
+def apply_external_metadata(response: BookResponse, external_book: ExternalBook | None) -> BookResponse:
+    """Attach external Google Books links to a local book response."""
+
+    if not external_book:
+        response.source = "external" if response.file_path == "" else "upload"
+        return response
+
+    response.source = external_book.source
+    response.external_id = external_book.external_id
+    response.preview_link = external_book.preview_link
+    response.info_link = external_book.info_link
+    response.web_reader_link = external_book.web_reader_link
+    response.buy_link = external_book.buy_link
+    response.can_download = external_book.can_download
+    response.download_formats = external_book.download_formats
+    response.access_view_status = external_book.access_view_status
+    return response
 
 
 async def create_audit_log(
@@ -285,10 +325,12 @@ async def get_books(
 
     # Generate download URLs
     items = []
+    external_map = await get_external_books_by_local_ids(db, [book.id for book in books])
     for book in books:
         response = BookResponse.model_validate(book)
+        apply_external_metadata(response, external_map.get(book.id))
         try:
-            response.download_url = await file_service.get_file_url(book.file_path)
+            response.download_url = await file_service.get_file_url(book.file_path) if book.file_path else None
         except Exception:
             response.download_url = None
         items.append(response)
@@ -329,10 +371,12 @@ async def get_shared_books(
     )
 
     items = []
+    external_map = await get_external_books_by_local_ids(db, [book.id for book in books])
     for book in books:
         response = BookResponse.model_validate(book)
+        apply_external_metadata(response, external_map.get(book.id))
         try:
-            response.download_url = await file_service.get_file_url(book.file_path)
+            response.download_url = await file_service.get_file_url(book.file_path) if book.file_path else None
         except Exception:
             response.download_url = None
         items.append(response)
@@ -365,10 +409,12 @@ async def get_my_books(
     total = await book_crud.count_by_user(db, current_user.id)
 
     items = []
+    external_map = await get_external_books_by_local_ids(db, [book.id for book in books])
     for book in books:
         response = BookResponse.model_validate(book)
+        apply_external_metadata(response, external_map.get(book.id))
         try:
-            response.download_url = await file_service.get_file_url(book.file_path)
+            response.download_url = await file_service.get_file_url(book.file_path) if book.file_path else None
         except Exception:
             response.download_url = None
         items.append(response)
@@ -422,8 +468,10 @@ async def get_book(
         )
 
     response = BookResponse.model_validate(book)
+    external_map = await get_external_books_by_local_ids(db, [book.id])
+    apply_external_metadata(response, external_map.get(book.id))
     try:
-        response.download_url = await file_service.get_file_url(book.file_path)
+        response.download_url = await file_service.get_file_url(book.file_path) if book.file_path else None
     except Exception:
         response.download_url = None
 
@@ -453,6 +501,11 @@ async def get_book_file(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Book not found",
+        )
+    if not book.file_path:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="This book is a Google Books card and has no local file",
         )
 
     try:
@@ -506,6 +559,11 @@ async def stream_book_file(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Book not found",
+        )
+    if not book.file_path:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="This book is a Google Books card and has no local file",
         )
 
     try:
@@ -564,6 +622,11 @@ async def get_book_html(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Book not found",
+        )
+    if not book.file_path:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="This book is a Google Books card and has no local file",
         )
 
     # Check if file is DOCX
@@ -664,8 +727,10 @@ async def update_book(
     background_tasks.add_task(update_index_task)
 
     response = BookResponse.model_validate(updated_book)
+    external_map = await get_external_books_by_local_ids(db, [updated_book.id])
+    apply_external_metadata(response, external_map.get(updated_book.id))
     try:
-        response.download_url = await file_service.get_file_url(updated_book.file_path)
+        response.download_url = await file_service.get_file_url(updated_book.file_path) if updated_book.file_path else None
     except Exception:
         response.download_url = None
 
@@ -707,12 +772,24 @@ async def delete_book(
         logger.warning(f"Failed to remove book {book_id} from search index: {e}")
 
     # Delete file from storage
-    try:
-        await file_service.delete_file(book.file_path)
-        if book.cover_path:
-            await file_service.delete_file(book.cover_path)
-    except Exception as e:
-        logger.warning(f"Failed to delete file from storage: {e}")
+    if book.file_path:
+        try:
+            await file_service.delete_file(book.file_path)
+            if book.cover_path:
+                await file_service.delete_file(book.cover_path)
+        except Exception as e:
+            logger.warning(f"Failed to delete file from storage: {e}")
+
+    external_result = await db.execute(
+        select(ExternalBook).where(ExternalBook.imported_book_id == book_id)
+    )
+    external_book = external_result.scalar_one_or_none()
+    if external_book:
+        external_book.is_imported = False
+        external_book.imported_book_id = None
+        external_book.imported_by_id = None
+        external_book.imported_at = None
+        await db.flush()
 
     # Delete from database
     await book_crud.delete(db, id=book_id)

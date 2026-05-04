@@ -33,6 +33,15 @@ class ExternalBookSearchResult(CamelCaseModel):
     thumbnail_url: str | None = None
     preview_link: str | None = None
     info_link: str | None = None
+    web_reader_link: str | None = None
+    buy_link: str | None = None
+    download_url: str | None = None
+    can_download: bool = False
+    download_formats: list[str] = Field(default_factory=list)
+    viewability: str | None = None
+    access_view_status: str | None = None
+    public_domain: bool = False
+    embeddable: bool = False
     average_rating: float | None = None
     ratings_count: int | None = None
 
@@ -121,6 +130,14 @@ class ExternalBookResponse(CamelCaseModel):
     preview_link: str | None = None
     info_link: str | None = None
     download_url: str | None = None
+    web_reader_link: str | None = None
+    buy_link: str | None = None
+    can_download: bool = False
+    download_formats: list[str] = Field(default_factory=list)
+    viewability: str | None = None
+    access_view_status: str | None = None
+    public_domain: bool = False
+    embeddable: bool = False
     is_imported: bool = False
     imported_book_id: int | None = None
     imported_at: datetime | None = None

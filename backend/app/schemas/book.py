@@ -77,6 +77,15 @@ class BookResponse(CamelCaseModel):
     cover_path: str | None = None
     cover_url: str | None = None
     download_url: str | None = None
+    source: str = "upload"
+    external_id: str | None = None
+    preview_link: str | None = None
+    info_link: str | None = None
+    web_reader_link: str | None = None
+    buy_link: str | None = None
+    can_download: bool = False
+    download_formats: list[str] = Field(default_factory=list)
+    access_view_status: str | None = None
     uploaded_by_id: int
     uploaded_by_username: str | None = None
     created_at: datetime

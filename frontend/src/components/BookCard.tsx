@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { BookOpen, Download, User, Calendar, Tag, Trash2, X, Loader2, Edit2 } from 'lucide-react'
+import { BookOpen, Download, User, Calendar, Tag, Trash2, X, Loader2, Edit2, ExternalLink } from 'lucide-react'
 import { getBookDownloadUrl } from '../services/api'
 import type { Book, ViewMode } from '../types'
 
@@ -14,6 +14,7 @@ interface BookCardProps {
 
 function BookCard({ book, viewMode = 'grid', onDelete, onEdit, isDeleting }: BookCardProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const hasFile = Boolean(book.filePath && book.fileName)
 
   const handleDelete = async () => {
     if (onDelete) {
@@ -32,6 +33,7 @@ function BookCard({ book, viewMode = 'grid', onDelete, onEdit, isDeleting }: Boo
     const badges: Record<string, { bg: string; text: string; label: string }> = {
       upload: { bg: 'bg-green-100', text: 'text-green-700', label: 'Загружено' },
       google_books: { bg: 'bg-blue-100', text: 'text-blue-700', label: 'Google Books' },
+      external: { bg: 'bg-blue-100', text: 'text-blue-700', label: 'Google Books' },
       gutenberg: { bg: 'bg-purple-100', text: 'text-purple-700', label: 'Gutenberg' },
     }
     const sourceKey = source || 'upload'
@@ -133,18 +135,29 @@ function BookCard({ book, viewMode = 'grid', onDelete, onEdit, isDeleting }: Boo
         <div className="flex-shrink-0 flex flex-col gap-2">
           <Link
             to={`/reader/${book.id}`}
-            className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors text-center"
+            className={`px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors text-center ${hasFile ? '' : 'hidden'}`}
           >
             Читать
           </Link>
           <a
             href={getBookDownloadUrl(book.id)}
             download={book.fileName || 'download'}
-            className="px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center"
+            className={`px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors items-center justify-center ${hasFile ? 'flex' : 'hidden'}`}
           >
             <Download className="h-4 w-4 mr-1" />
             Скачать
           </a>
+          {!hasFile && book.infoLink && (
+            <a
+              href={book.infoLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center"
+            >
+              <ExternalLink className="h-4 w-4 mr-1" />
+              More Info
+            </a>
+          )}
           {onEdit && (
             <button
               onClick={() => onEdit(book)}
@@ -207,7 +220,11 @@ function BookCard({ book, viewMode = 'grid', onDelete, onEdit, isDeleting }: Boo
   return (
     <div className="bg-white rounded-lg border overflow-hidden hover:shadow-md transition-shadow group flex flex-col">
       {/* Cover */}
-      <Link to={`/reader/${book.id}`} className="block aspect-[3/4] relative overflow-hidden bg-gray-100">
+      <Link
+        to={hasFile ? `/reader/${book.id}` : '#'}
+        onClick={(event) => !hasFile && event.preventDefault()}
+        className="block aspect-[3/4] relative overflow-hidden bg-gray-100"
+      >
         {book.coverUrl ? (
           <img
             src={book.coverUrl}
@@ -227,7 +244,7 @@ function BookCard({ book, viewMode = 'grid', onDelete, onEdit, isDeleting }: Boo
         </span>
 
         {/* Hover Overlay */}
-        <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
+        <div className={`absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all items-center justify-center opacity-0 group-hover:opacity-100 ${hasFile ? 'flex' : 'hidden'}`}>
           <span className="px-4 py-2 bg-white text-gray-900 font-medium rounded-lg">
             Читать
           </span>
@@ -236,7 +253,10 @@ function BookCard({ book, viewMode = 'grid', onDelete, onEdit, isDeleting }: Boo
 
       {/* Info */}
       <div className="p-3 flex-grow flex flex-col">
-        <Link to={`/reader/${book.id}`}>
+        <Link
+          to={hasFile ? `/reader/${book.id}` : '#'}
+          onClick={(event) => !hasFile && event.preventDefault()}
+        >
           <h3 className="font-medium text-gray-900 text-sm line-clamp-2 hover:text-blue-600 transition-colors min-h-[2.5rem]">
             {book.title}
           </h3>
@@ -290,6 +310,22 @@ function BookCard({ book, viewMode = 'grid', onDelete, onEdit, isDeleting }: Boo
           <p className="text-xs text-gray-500 mt-2 line-clamp-2 flex-grow">
             {book.description}
           </p>
+        )}
+
+        {!hasFile && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {book.infoLink && (
+              <a
+                href={book.infoLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700"
+              >
+                <ExternalLink className="h-3 w-3" />
+                More Info
+              </a>
+            )}
+          </div>
         )}
       </div>
     </div>

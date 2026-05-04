@@ -57,7 +57,7 @@ export interface Book {
   status: BookStatus
   visibility: BookVisibility
   tags?: string[]
-  source?: 'upload' | 'google_books' | 'gutenberg'
+  source?: 'upload' | 'external' | 'google_books' | 'gutenberg'
   coverPath: string | null
   coverUrl: string | null
   filePath: string
@@ -65,6 +65,14 @@ export interface Book {
   fileSize: number
   contentType: string
   downloadUrl: string | null
+  externalId?: string | null
+  previewLink?: string | null
+  infoLink?: string | null
+  webReaderLink?: string | null
+  buyLink?: string | null
+  canDownload?: boolean
+  downloadFormats?: string[]
+  accessViewStatus?: string | null
   pageCount?: number | null
   uploadedById: number
   uploadedByUsername?: string | null
@@ -284,6 +292,15 @@ export interface ExternalBookSearchResult {
   thumbnailUrl: string | null
   previewLink: string | null
   infoLink: string | null
+  webReaderLink: string | null
+  buyLink: string | null
+  downloadUrl: string | null
+  canDownload: boolean
+  downloadFormats: string[]
+  viewability: string | null
+  accessViewStatus: string | null
+  publicDomain: boolean
+  embeddable: boolean
   averageRating: number | null
   ratingsCount: number | null
   isImported: boolean
@@ -359,6 +376,14 @@ export interface ExternalBook {
   previewLink: string | null
   infoLink: string | null
   downloadUrl: string | null
+  webReaderLink: string | null
+  buyLink: string | null
+  canDownload: boolean
+  downloadFormats: string[]
+  viewability: string | null
+  accessViewStatus: string | null
+  publicDomain: boolean
+  embeddable: boolean
   isImported: boolean
   importedBookId: number | null
   importedAt: string | null
