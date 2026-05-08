@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { BookOpen, Download, User, Calendar, Tag, Trash2, X, Loader2, Edit2, ExternalLink } from 'lucide-react'
 import { getBookDownloadUrl } from '../services/api'
+import { useLanguage } from '../contexts/LanguageContext'
 import type { Book, ViewMode } from '../types'
 
 interface BookCardProps {
@@ -13,6 +14,7 @@ interface BookCardProps {
 }
 
 function BookCard({ book, viewMode = 'grid', onDelete, onEdit, isDeleting }: BookCardProps) {
+  const { t } = useLanguage()
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const hasFile = Boolean(book.filePath && book.fileName)
 
@@ -22,6 +24,7 @@ function BookCard({ book, viewMode = 'grid', onDelete, onEdit, isDeleting }: Boo
       setShowDeleteConfirm(false)
     }
   }
+
   const formatFileSize = (bytes: number | null) => {
     if (!bytes) return null
     if (bytes < 1024) return bytes + ' B'
@@ -31,31 +34,49 @@ function BookCard({ book, viewMode = 'grid', onDelete, onEdit, isDeleting }: Boo
 
   const getSourceBadge = (source?: string) => {
     const badges: Record<string, { bg: string; text: string; label: string }> = {
-      upload: { bg: 'bg-green-100', text: 'text-green-700', label: 'Загружено' },
-      google_books: { bg: 'bg-blue-100', text: 'text-blue-700', label: 'Google Books' },
-      external: { bg: 'bg-blue-100', text: 'text-blue-700', label: 'Google Books' },
+      upload: { bg: 'bg-green-100', text: 'text-green-700', label: t('common.uploaded') },
+      google_books: { bg: 'bg-blue-100', text: 'text-blue-700', label: t('common.googleBooks') },
+      external: { bg: 'bg-blue-100', text: 'text-blue-700', label: t('common.googleBooks') },
       gutenberg: { bg: 'bg-purple-100', text: 'text-purple-700', label: 'Gutenberg' },
     }
-    const sourceKey = source || 'upload'
-    return badges[sourceKey] || badges.upload
+    return badges[source || 'upload'] || badges.upload
   }
 
   const sourceBadge = getSourceBadge(book.source)
   const visibilityBadge = book.visibility === 'public'
-    ? { bg: 'bg-emerald-100', text: 'text-emerald-700', label: 'Public' }
-    : { bg: 'bg-slate-100', text: 'text-slate-700', label: 'Private' }
+    ? { bg: 'bg-emerald-100', text: 'text-emerald-700', label: t('common.public') }
+    : { bg: 'bg-slate-100', text: 'text-slate-700', label: t('common.private') }
+
+  const meta = (
+    <>
+      {book.category && (
+        <span className="flex items-center gap-1">
+          <Tag className="h-3 w-3" />
+          {book.category}
+        </span>
+      )}
+      {book.language && (
+        <span className="uppercase bg-blue-50 text-blue-600 px-2 py-0.5 rounded">
+          {book.language}
+        </span>
+      )}
+      {book.publishedYear && (
+        <span className="flex items-center gap-1">
+          <Calendar className="h-3 w-3" />
+          {book.publishedYear}
+        </span>
+      )}
+      {book.isbn && <span className="font-mono">ISBN: {book.isbn}</span>}
+      {book.fileSize ? <span>{formatFileSize(book.fileSize)}</span> : null}
+    </>
+  )
 
   if (viewMode === 'list') {
     return (
       <div className="flex items-center p-4 bg-white rounded-lg border hover:shadow-md transition-shadow gap-4">
-        {/* Cover */}
         <div className="w-20 h-28 flex-shrink-0 rounded overflow-hidden bg-gray-100">
           {book.coverUrl ? (
-            <img
-              src={book.coverUrl}
-              alt={book.title}
-              className="w-full h-full object-cover"
-            />
+            <img src={book.coverUrl} alt={book.title} className="w-full h-full object-cover" />
           ) : (
             <div className="w-full h-full flex items-center justify-center">
               <BookOpen className="h-8 w-8 text-gray-300" />
@@ -63,7 +84,6 @@ function BookCard({ book, viewMode = 'grid', onDelete, onEdit, isDeleting }: Boo
           )}
         </div>
 
-        {/* Info */}
         <div className="flex-grow min-w-0">
           <div className="flex items-start justify-between">
             <div className="min-w-0 flex-grow">
@@ -88,56 +108,23 @@ function BookCard({ book, viewMode = 'grid', onDelete, onEdit, isDeleting }: Boo
 
           {book.uploadedByUsername && (
             <p className="text-xs text-gray-500 mt-2">
-              Shared by {book.uploadedByUsername}
+              {t('book.sharedBy', { username: book.uploadedByUsername })}
             </p>
           )}
 
-          {book.description && (
-            <p className="text-sm text-gray-500 mt-2 line-clamp-2">{book.description}</p>
-          )}
+          {book.description && <p className="text-sm text-gray-500 mt-2 line-clamp-2">{book.description}</p>}
 
           <div className="flex flex-wrap items-center gap-3 mt-2 text-xs text-gray-500">
-            {book.category && (
-              <span className="flex items-center gap-1">
-                <Tag className="h-3 w-3" />
-                {book.category}
-              </span>
-            )}
-            {book.language && (
-              <span className="uppercase bg-blue-50 text-blue-600 px-2 py-0.5 rounded">
-                {book.language}
-              </span>
-            )}
-            {book.publisher && (
-              <span className="flex items-center gap-1">
-                <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                </svg>
-                {book.publisher}
-              </span>
-            )}
-            {book.publishedYear && (
-              <span className="flex items-center gap-1">
-                <Calendar className="h-3 w-3" />
-                {book.publishedYear}
-              </span>
-            )}
-            {book.isbn && (
-              <span className="font-mono">ISBN: {book.isbn}</span>
-            )}
-            {book.fileSize && (
-              <span>{formatFileSize(book.fileSize)}</span>
-            )}
+            {meta}
           </div>
         </div>
 
-        {/* Actions */}
         <div className="flex-shrink-0 flex flex-col gap-2">
           <Link
             to={`/reader/${book.id}`}
             className={`px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors text-center ${hasFile ? '' : 'hidden'}`}
           >
-            Читать
+            {t('book.read')}
           </Link>
           <a
             href={getBookDownloadUrl(book.id)}
@@ -145,7 +132,7 @@ function BookCard({ book, viewMode = 'grid', onDelete, onEdit, isDeleting }: Boo
             className={`px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors items-center justify-center ${hasFile ? 'flex' : 'hidden'}`}
           >
             <Download className="h-4 w-4 mr-1" />
-            Скачать
+            {t('book.download')}
           </a>
           {!hasFile && book.infoLink && (
             <a
@@ -155,7 +142,7 @@ function BookCard({ book, viewMode = 'grid', onDelete, onEdit, isDeleting }: Boo
               className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center"
             >
               <ExternalLink className="h-4 w-4 mr-1" />
-              More Info
+              {t('book.moreInfo')}
             </a>
           )}
           {onEdit && (
@@ -164,7 +151,7 @@ function BookCard({ book, viewMode = 'grid', onDelete, onEdit, isDeleting }: Boo
               className="px-4 py-2 border border-blue-300 text-blue-600 text-sm font-medium rounded-lg hover:bg-blue-50 transition-colors flex items-center justify-center"
             >
               <Edit2 className="h-4 w-4 mr-1" />
-              Редактировать
+              {t('common.edit')}
             </button>
           )}
           {onDelete && (
@@ -174,23 +161,22 @@ function BookCard({ book, viewMode = 'grid', onDelete, onEdit, isDeleting }: Boo
               className="px-4 py-2 border border-red-300 text-red-600 text-sm font-medium rounded-lg hover:bg-red-50 transition-colors flex items-center justify-center disabled:opacity-50"
             >
               <Trash2 className="h-4 w-4 mr-1" />
-              Удалить
+              {t('common.delete')}
             </button>
           )}
         </div>
 
-        {/* Delete Confirmation Popup */}
         {showDeleteConfirm && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-lg shadow-xl max-w-sm w-full p-5">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-base font-semibold text-gray-900">Удалить книгу?</h3>
+                <h3 className="text-base font-semibold text-gray-900">{t('book.deleteQuestion')}</h3>
                 <button onClick={() => setShowDeleteConfirm(false)} className="p-1 hover:bg-gray-100 rounded">
                   <X className="h-4 w-4 text-gray-500" />
                 </button>
               </div>
               <p className="text-sm text-gray-600 mb-4">
-                Удалить "{book.title}"? Это действие нельзя отменить.
+                {t('book.deleteConfirm', { title: book.title })}
               </p>
               <div className="flex justify-end gap-2">
                 <button
@@ -198,7 +184,7 @@ function BookCard({ book, viewMode = 'grid', onDelete, onEdit, isDeleting }: Boo
                   disabled={isDeleting}
                   className="px-3 py-1.5 text-sm border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50"
                 >
-                  Отмена
+                  {t('common.cancel')}
                 </button>
                 <button
                   onClick={handleDelete}
@@ -206,7 +192,7 @@ function BookCard({ book, viewMode = 'grid', onDelete, onEdit, isDeleting }: Boo
                   className="px-3 py-1.5 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center gap-1"
                 >
                   {isDeleting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
-                  Удалить
+                  {t('common.delete')}
                 </button>
               </div>
             </div>
@@ -216,10 +202,8 @@ function BookCard({ book, viewMode = 'grid', onDelete, onEdit, isDeleting }: Boo
     )
   }
 
-  // Grid view
   return (
     <div className="bg-white rounded-lg border overflow-hidden hover:shadow-md transition-shadow group flex flex-col">
-      {/* Cover */}
       <Link
         to={hasFile ? `/reader/${book.id}` : '#'}
         onClick={(event) => !hasFile && event.preventDefault()}
@@ -238,20 +222,17 @@ function BookCard({ book, viewMode = 'grid', onDelete, onEdit, isDeleting }: Boo
           </div>
         )}
 
-        {/* Source Badge Overlay */}
         <span className={`absolute top-2 right-2 text-xs px-2 py-0.5 rounded ${sourceBadge.bg} ${sourceBadge.text}`}>
           {sourceBadge.label}
         </span>
 
-        {/* Hover Overlay */}
         <div className={`absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all items-center justify-center opacity-0 group-hover:opacity-100 ${hasFile ? 'flex' : 'hidden'}`}>
           <span className="px-4 py-2 bg-white text-gray-900 font-medium rounded-lg">
-            Читать
+            {t('book.read')}
           </span>
         </div>
       </Link>
 
-      {/* Info */}
       <div className="p-3 flex-grow flex flex-col">
         <Link
           to={hasFile ? `/reader/${book.id}` : '#'}
@@ -261,7 +242,7 @@ function BookCard({ book, viewMode = 'grid', onDelete, onEdit, isDeleting }: Boo
             {book.title}
           </h3>
         </Link>
-        
+
         {book.author && (
           <p className="text-xs text-gray-600 mt-1 truncate flex items-center gap-1">
             <User className="h-3 w-3" />
@@ -271,10 +252,10 @@ function BookCard({ book, viewMode = 'grid', onDelete, onEdit, isDeleting }: Boo
 
         {book.uploadedByUsername && (
           <p className="text-xs text-gray-500 mt-1 truncate">
-            Shared by {book.uploadedByUsername}
+            {t('book.sharedBy', { username: book.uploadedByUsername })}
           </p>
         )}
-        
+
         <div className="flex flex-wrap gap-1 mt-2">
           <span className={`inline-block text-xs px-2 py-0.5 rounded ${visibilityBadge.bg} ${visibilityBadge.text}`}>
             {visibilityBadge.label}
@@ -290,7 +271,7 @@ function BookCard({ book, viewMode = 'grid', onDelete, onEdit, isDeleting }: Boo
             </span>
           )}
         </div>
-        
+
         {(book.publishedYear || book.fileSize) && (
           <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
             {book.publishedYear && (
@@ -299,32 +280,27 @@ function BookCard({ book, viewMode = 'grid', onDelete, onEdit, isDeleting }: Boo
                 {book.publishedYear}
               </span>
             )}
-            {book.fileSize && (
-              <span>{formatFileSize(book.fileSize)}</span>
-            )}
+            {book.fileSize ? <span>{formatFileSize(book.fileSize)}</span> : null}
           </div>
         )}
-        
-        {/* Description preview */}
+
         {book.description && (
           <p className="text-xs text-gray-500 mt-2 line-clamp-2 flex-grow">
             {book.description}
           </p>
         )}
 
-        {!hasFile && (
+        {!hasFile && book.infoLink && (
           <div className="mt-3 flex flex-wrap gap-2">
-            {book.infoLink && (
-              <a
-                href={book.infoLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700"
-              >
-                <ExternalLink className="h-3 w-3" />
-                More Info
-              </a>
-            )}
+            <a
+              href={book.infoLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700"
+            >
+              <ExternalLink className="h-3 w-3" />
+              {t('book.moreInfo')}
+            </a>
           </div>
         )}
       </div>

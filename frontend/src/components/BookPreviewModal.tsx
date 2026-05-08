@@ -14,7 +14,8 @@ import {
   FileText,
   Languages,
 } from 'lucide-react'
-import type { ExternalBookSearchResult, ExternalSource } from '../types'
+import { useLanguage } from '../contexts/LanguageContext'
+import type { ExternalBookSearchResult } from '../types'
 
 interface BookPreviewModalProps {
   book: ExternalBookSearchResult
@@ -24,49 +25,30 @@ interface BookPreviewModalProps {
   isImporting: boolean
 }
 
-const SOURCE_LABELS: Record<ExternalSource, string> = {
-  google_books: 'Google Books',
-}
-
-const SOURCE_COLORS: Record<ExternalSource, string> = {
-  google_books: 'bg-blue-100 text-blue-700',
-}
-
-const getAvailabilityLabel = (book: ExternalBookSearchResult) => {
-  if (book.canDownload) {
-    return `File available${book.downloadFormats.length ? `: ${book.downloadFormats.join(', ')}` : ''}`
-  }
-  if (book.buyLink) {
-    return 'Paid / card only'
-  }
-  if (book.previewLink || book.webReaderLink) {
-    return 'Preview / card only'
-  }
-  return 'Card only'
-}
-
-function BookPreviewModal({
-  book,
-  isOpen,
-  onClose,
-  onImport,
-  isImporting,
-}: BookPreviewModalProps) {
+function BookPreviewModal({ book, isOpen, onClose, onImport, isImporting }: BookPreviewModalProps) {
+  const { t } = useLanguage()
   const modalRef = useRef<HTMLDivElement>(null)
 
-  // Handle escape key
+  const getAvailabilityLabel = () => {
+    if (book.canDownload) {
+      return t('external.fileAvailable', {
+        formats: book.downloadFormats.length ? `: ${book.downloadFormats.join(', ')}` : '',
+      })
+    }
+    if (book.buyLink) return t('external.paidCardOnly')
+    if (book.previewLink || book.webReaderLink) return t('external.previewCardOnly')
+    return t('external.cardOnly')
+  }
+
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
-        onClose()
-      }
+      if (e.key === 'Escape' && isOpen) onClose()
     }
 
     document.addEventListener('keydown', handleEscape)
     return () => document.removeEventListener('keydown', handleEscape)
   }, [isOpen, onClose])
 
-  // Handle click outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (modalRef.current && !modalRef.current.contains(e.target as Node)) {
@@ -89,47 +71,30 @@ function BookPreviewModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-      <div
-        ref={modalRef}
-        className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col"
-      >
-        {/* Header */}
+      <div ref={modalRef} className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         <div className="flex items-center justify-between p-4 border-b">
           <div className="flex items-center gap-2">
-            <span className={`px-2 py-1 rounded text-sm ${SOURCE_COLORS[book.source]}`}>
-              {SOURCE_LABELS[book.source]}
-            </span>
+            <span className="px-2 py-1 rounded text-sm bg-blue-100 text-blue-700">{t('common.googleBooks')}</span>
             {book.isImported && (
               <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-sm flex items-center gap-1">
                 <Check className="h-3 w-3" />
-                Imported
+                {t('common.imported')}
               </span>
             )}
-            <span className={`px-2 py-1 rounded text-sm ${
-              book.canDownload ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
-            }`}>
-              {getAvailabilityLabel(book)}
+            <span className={`px-2 py-1 rounded text-sm ${book.canDownload ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+              {getAvailabilityLabel()}
             </span>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-          >
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        {/* Content */}
         <div className="flex-grow overflow-y-auto p-6">
           <div className="flex flex-col md:flex-row gap-6">
-            {/* Cover Image */}
             <div className="w-40 h-56 flex-shrink-0 bg-gray-100 rounded-lg overflow-hidden mx-auto md:mx-0 shadow-md">
               {book.thumbnailUrl ? (
-                <img
-                  src={book.thumbnailUrl}
-                  alt={book.title}
-                  className="w-full h-full object-cover"
-                />
+                <img src={book.thumbnailUrl} alt={book.title} className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full flex flex-col items-center justify-center text-gray-300">
                   <BookOpen className="h-16 w-16 mb-2" />
@@ -138,7 +103,6 @@ function BookPreviewModal({
               )}
             </div>
 
-            {/* Info */}
             <div className="flex-grow">
               <h2 className="text-2xl font-bold text-gray-900 mb-2">{book.title}</h2>
 
@@ -149,7 +113,6 @@ function BookPreviewModal({
                 </p>
               )}
 
-              {/* Meta grid */}
               <div className="grid grid-cols-2 gap-3 text-sm mb-4">
                 {book.publishedDate && (
                   <div className="flex items-center gap-2 text-gray-600">
@@ -157,51 +120,36 @@ function BookPreviewModal({
                     <span>{book.publishedDate}</span>
                   </div>
                 )}
-
                 {book.publisher && (
                   <div className="flex items-center gap-2 text-gray-600">
                     <Building className="h-4 w-4 text-gray-400" />
                     <span className="truncate">{book.publisher}</span>
                   </div>
                 )}
-
                 {book.pageCount && (
                   <div className="flex items-center gap-2 text-gray-600">
                     <FileText className="h-4 w-4 text-gray-400" />
-                    <span>{book.pageCount} pages</span>
+                    <span>{book.pageCount}</span>
                   </div>
                 )}
-
                 {book.language && (
                   <div className="flex items-center gap-2 text-gray-600">
                     <Languages className="h-4 w-4 text-gray-400" />
                     <span className="uppercase">{book.language}</span>
                   </div>
                 )}
-
                 {book.averageRating && (
                   <div className="flex items-center gap-2 text-gray-600">
                     <Star className="h-4 w-4 text-yellow-500 fill-current" />
-                    <span>
-                      {book.averageRating.toFixed(1)}
-                      {book.ratingsCount && (
-                        <span className="text-gray-400 ml-1">
-                          ({book.ratingsCount.toLocaleString()} ratings)
-                        </span>
-                      )}
-                    </span>
+                    <span>{book.averageRating.toFixed(1)}</span>
                   </div>
                 )}
               </div>
 
-              {/* Categories */}
               {book.categories.length > 0 && (
                 <div className="flex flex-wrap gap-2 mb-4">
                   {book.categories.map((category, index) => (
-                    <span
-                      key={index}
-                      className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-sm flex items-center gap-1"
-                    >
+                    <span key={index} className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-sm flex items-center gap-1">
                       <Tag className="h-3 w-3" />
                       {category}
                     </span>
@@ -209,7 +157,6 @@ function BookPreviewModal({
                 </div>
               )}
 
-              {/* ISBNs */}
               {(book.isbn10 || book.isbn13) && (
                 <div className="text-sm text-gray-500 mb-4">
                   {book.isbn13 && <div>ISBN-13: <span className="font-mono">{book.isbn13}</span></div>}
@@ -219,46 +166,33 @@ function BookPreviewModal({
             </div>
           </div>
 
-          {/* Description */}
           {book.description && (
             <div className="mt-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Description</h3>
-              <div
-                className="text-gray-600 prose prose-sm max-w-none"
-                dangerouslySetInnerHTML={{ __html: book.description }}
-              />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">{t('common.description')}</h3>
+              <div className="text-gray-600 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: book.description }} />
             </div>
           )}
         </div>
 
-        {/* Footer */}
         <div className="flex items-center justify-between p-4 border-t bg-gray-50">
           <div className="flex items-center gap-3">
             {book.infoLink && (
-              <a
-                href={book.infoLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900"
-              >
+              <a href={book.infoLink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900">
                 <Globe className="h-4 w-4" />
-                More Info
+                {t('external.moreInfo')}
               </a>
             )}
           </div>
 
           <div className="flex items-center gap-3">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
-            >
-              Close
+            <button onClick={onClose} className="px-4 py-2 text-gray-700 hover:bg-gray-200 rounded-lg transition-colors">
+              {t('common.cancel')}
             </button>
 
             {book.isImported ? (
               <span className="px-4 py-2 bg-green-100 text-green-700 rounded-lg flex items-center gap-2">
                 <Check className="h-5 w-5" />
-                Already Imported
+                {t('common.imported')}
               </span>
             ) : (
               <button
@@ -269,12 +203,12 @@ function BookPreviewModal({
                 {isImporting ? (
                   <>
                     <Loader2 className="h-5 w-5 animate-spin" />
-                    Importing...
+                    {t('external.importing')}
                   </>
                 ) : (
                   <>
                     <Download className="h-5 w-5" />
-                    {book.canDownload ? 'Add card with file link' : 'Add card'}
+                    {book.canDownload ? t('external.addCardWithFile') : t('external.addCard')}
                   </>
                 )}
               </button>

@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Shield, UserX, UserCheck } from 'lucide-react'
 import { adminApi, getErrorMessage } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
+import { useLanguage } from '../contexts/LanguageContext'
 import type { User, UserRole } from '../types'
 
 const roleOptions: UserRole[] = ['user', 'moderator', 'admin']
@@ -9,6 +10,7 @@ const roleOptions: UserRole[] = ['user', 'moderator', 'admin']
 function AdminUsersPage() {
   const queryClient = useQueryClient()
   const { user: currentUser } = useAuth()
+  const { t } = useLanguage()
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['admin-users'],
@@ -35,11 +37,11 @@ function AdminUsersPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Users</h1>
-        <p className="text-gray-600 mt-1">Manage roles and account access.</p>
+        <h1 className="text-2xl font-bold text-gray-900">{t('admin.users')}</h1>
+        <p className="text-gray-600 mt-1">{t('admin.usersSubtitle')}</p>
       </div>
 
-      {isLoading && <p className="text-gray-500">Loading users...</p>}
+      {isLoading && <p className="text-gray-500">{t('admin.loadingUsers')}</p>}
       {error && <p className="text-red-600">{getErrorMessage(error)}</p>}
 
       <div className="bg-white border rounded-xl overflow-hidden">
@@ -47,10 +49,10 @@ function AdminUsersPage() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">User</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Role</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Actions</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{t('admin.user')}</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{t('admin.role')}</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{t('admin.status')}</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">{t('admin.actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -81,7 +83,7 @@ function AdminUsersPage() {
                       <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
                         user.isBlocked ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
                       }`}>
-                        {user.isBlocked ? 'blocked' : 'active'}
+                        {user.isBlocked ? t('admin.blocked') : t('admin.active')}
                       </span>
                     </td>
                     <td className="px-4 py-4">
@@ -93,7 +95,7 @@ function AdminUsersPage() {
                             onChange={(e) => updateRoleMutation.mutate({ userId: user.id, role: e.target.value as UserRole })}
                             disabled={isCurrentUser}
                             className="px-3 py-2 text-sm border rounded-lg bg-white disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
-                            title={isCurrentUser ? 'You cannot change your own role' : undefined}
+                            title={isCurrentUser ? t('admin.selfRoleDisabled') : undefined}
                           >
                             {roleOptions.map((role) => (
                               <option key={role} value={role}>
@@ -111,7 +113,7 @@ function AdminUsersPage() {
                           }`}
                         >
                           {user.isBlocked ? <UserCheck className="w-4 h-4" /> : <UserX className="w-4 h-4" />}
-                          {user.isBlocked ? 'Unblock' : 'Block'}
+                          {user.isBlocked ? t('admin.unblock') : t('admin.block')}
                         </button>
                       </div>
                     </td>

@@ -10,6 +10,7 @@ import {
   AlertCircle,
   X,
 } from 'lucide-react'
+import { useLanguage } from '../contexts/LanguageContext'
 
 interface EpubViewerProps {
   url: string
@@ -24,12 +25,13 @@ interface TocItem {
 }
 
 function EpubViewer({ url, title }: EpubViewerProps) {
+  const { t } = useLanguage()
   const viewerRef = useRef<HTMLDivElement>(null)
   const bookRef = useRef<Book | null>(null)
   const renditionRef = useRef<Rendition | null>(null)
 
   const [isLoading, setIsLoading] = useState(true)
-  const [loadingStatus, setLoadingStatus] = useState<string>('Загрузка файла...')
+  const [loadingStatus, setLoadingStatus] = useState<string>(t('reader.loadingFile'))
   const [downloadProgress, setDownloadProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [toc, setToc] = useState<TocItem[]>([])
@@ -43,7 +45,7 @@ function EpubViewer({ url, title }: EpubViewerProps) {
     setIsLoading(true)
     setError(null)
     setDownloadProgress(0)
-    setLoadingStatus('Загрузка файла...')
+    setLoadingStatus(t('reader.loadingFile'))
 
     let isDestroyed = false
     let loadingTimeout: ReturnType<typeof setTimeout> | null = null
@@ -52,7 +54,7 @@ function EpubViewer({ url, title }: EpubViewerProps) {
     // Set loading timeout (60 seconds for large files)
     loadingTimeout = setTimeout(() => {
       if (isDestroyed) return
-      setError('Превышено время загрузки. Файл может быть повреждён или слишком большой.')
+      setError(t('reader.epubTimeout'))
       setIsLoading(false)
     }, 60000)
 
@@ -91,9 +93,9 @@ function EpubViewer({ url, title }: EpubViewerProps) {
           if (total > 0) {
             const percent = Math.round((receivedLength / total) * 100)
             setDownloadProgress(percent)
-            setLoadingStatus(`Загрузка файла... ${percent}%`)
+            setLoadingStatus(`${t('reader.loadingFile')} ${percent}%`)
           } else {
-            setLoadingStatus(`Загрузка... ${(receivedLength / 1024 / 1024).toFixed(1)} MB`)
+            setLoadingStatus(`${t('common.loading')} ${(receivedLength / 1024 / 1024).toFixed(1)} MB`)
           }
         }
 
@@ -107,7 +109,7 @@ function EpubViewer({ url, title }: EpubViewerProps) {
           position += chunk.length
         }
 
-        setLoadingStatus('Обработка книги...')
+        setLoadingStatus(t('reader.processingBook'))
 
         const book = ePub(arrayBuffer.buffer)
         bookRef.current = book
@@ -116,7 +118,7 @@ function EpubViewer({ url, title }: EpubViewerProps) {
 
         if (isDestroyed || !viewerRef.current) return
 
-        setLoadingStatus('Подготовка отображения...')
+        setLoadingStatus(t('reader.preparingView'))
 
         const rendition = book.renderTo(viewerRef.current, {
           width: '100%',
@@ -264,7 +266,7 @@ function EpubViewer({ url, title }: EpubViewerProps) {
           return
         }
         console.error('Error loading EPUB:', err)
-        setError('Не удалось загрузить EPUB файл. Проверьте, что файл корректный.')
+        setError(t('reader.epubInvalid'))
         setIsLoading(false)
         if (loadingTimeout) {
           clearTimeout(loadingTimeout)
@@ -289,7 +291,7 @@ function EpubViewer({ url, title }: EpubViewerProps) {
         bookRef.current = null
       }
     }
-  }, [url])
+  }, [url, t])
 
   // Handle container resize
   useEffect(() => {
@@ -374,7 +376,7 @@ function EpubViewer({ url, title }: EpubViewerProps) {
           <button
             onClick={goToPrev}
             className="p-2 rounded-lg hover:bg-gray-100"
-            title="Previous page"
+            title={t('reader.previousPage')}
           >
             <ChevronLeft className="h-5 w-5" />
           </button>
@@ -382,15 +384,15 @@ function EpubViewer({ url, title }: EpubViewerProps) {
           <button
             onClick={goToNext}
             className="p-2 rounded-lg hover:bg-gray-100"
-            title="Next page"
+            title={t('reader.nextPage')}
           >
             <ChevronRight className="h-5 w-5" />
           </button>
 
           <button
             onClick={() => setShowToc(!showToc)}
-            className={`p-2 rounded-lg ${showToc ? 'bg-blue-100 text-blue-600' : 'hover:bg-gray-100'}`}
-            title="Table of contents"
+            className={`p-2 rounded-lg ${showToc ? 'bg-[#DAF3E6] text-[#008A5E]' : 'hover:bg-gray-100'}`}
+            title={t('reader.contents')}
           >
             <List className="h-5 w-5" />
           </button>
@@ -411,7 +413,7 @@ function EpubViewer({ url, title }: EpubViewerProps) {
             onClick={decreaseFontSize}
             disabled={fontSize <= 50}
             className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50"
-            title="Decrease font size"
+            title={t('reader.decreaseFont')}
           >
             <ZoomOut className="h-5 w-5" />
           </button>
@@ -422,7 +424,7 @@ function EpubViewer({ url, title }: EpubViewerProps) {
             onClick={increaseFontSize}
             disabled={fontSize >= 200}
             className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50"
-            title="Increase font size"
+            title={t('reader.increaseFont')}
           >
             <ZoomIn className="h-5 w-5" />
           </button>
@@ -435,7 +437,7 @@ function EpubViewer({ url, title }: EpubViewerProps) {
         {showToc && (
           <div className="absolute left-0 top-0 bottom-0 w-64 bg-white border-r shadow-lg z-10 overflow-y-auto">
             <div className="flex items-center justify-between p-4 border-b">
-              <h3 className="font-medium text-gray-900">Contents</h3>
+              <h3 className="font-medium text-gray-900">{t('reader.contents')}</h3>
               <button
                 onClick={() => setShowToc(false)}
                 className="p-1 hover:bg-gray-100 rounded"
@@ -474,17 +476,17 @@ function EpubViewer({ url, title }: EpubViewerProps) {
         {/* Loading state */}
         {isLoading && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-white">
-            <Loader2 className="h-10 w-10 text-blue-600 animate-spin mb-4" />
+            <Loader2 className="h-10 w-10 text-[#008A5E] animate-spin mb-4" />
             <p className="text-gray-700 font-medium mb-2">{loadingStatus}</p>
             {downloadProgress > 0 && (
               <div className="w-64 bg-gray-200 rounded-full h-2 mb-2">
                 <div
-                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                  className="bg-[#008A5E] h-2 rounded-full transition-all duration-300"
                   style={{ width: `${downloadProgress}%` }}
                 />
               </div>
             )}
-            <p className="text-sm text-gray-500">Пожалуйста, подождите...</p>
+            <p className="text-sm text-gray-500">{t('reader.loadingWait')}</p>
           </div>
         )}
 
@@ -494,7 +496,7 @@ function EpubViewer({ url, title }: EpubViewerProps) {
             <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
               <AlertCircle className="h-8 w-8 text-red-500" />
             </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Ошибка загрузки EPUB</h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">{t('reader.epubLoadError')}</h3>
             <p className="text-gray-600 text-center max-w-md">{error}</p>
           </div>
         )}
@@ -512,14 +514,14 @@ function EpubViewer({ url, title }: EpubViewerProps) {
             <button
               onClick={goToPrev}
               className="absolute left-0 top-0 bottom-0 w-16 opacity-0 hover:opacity-100 bg-gradient-to-r from-black/10 to-transparent flex items-center justify-start pl-2 transition-opacity"
-              title="Previous"
+              title={t('reader.previousPage')}
             >
               <ChevronLeft className="h-8 w-8 text-gray-500" />
             </button>
             <button
               onClick={goToNext}
               className="absolute right-0 top-0 bottom-0 w-16 opacity-0 hover:opacity-100 bg-gradient-to-l from-black/10 to-transparent flex items-center justify-end pr-2 transition-opacity"
-              title="Next"
+              title={t('reader.nextPage')}
             >
               <ChevronRight className="h-8 w-8 text-gray-500" />
             </button>

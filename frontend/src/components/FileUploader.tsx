@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react'
 import { Upload, File, X, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
+import { useLanguage } from '../contexts/LanguageContext'
 import type { UploadProgress } from '../types'
 
 interface FileUploaderProps {
@@ -7,7 +8,7 @@ interface FileUploaderProps {
   selectedFile: File | null
   uploadProgress?: UploadProgress | null
   accept?: string
-  maxSize?: number // in MB
+  maxSize?: number
 }
 
 const ALLOWED_TYPES = [
@@ -24,24 +25,23 @@ function FileUploader({
   selectedFile,
   uploadProgress,
   accept = '.pdf,.epub,.txt,.docx',
-  maxSize = 50, // 50 MB default
+  maxSize = 50,
 }: FileUploaderProps) {
+  const { t } = useLanguage()
   const [isDragging, setIsDragging] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const validateFile = (file: File): string | null => {
-    // Check file type
     const extension = '.' + file.name.split('.').pop()?.toLowerCase()
     const isValidType = ALLOWED_TYPES.includes(file.type) || ALLOWED_EXTENSIONS.includes(extension)
 
     if (!isValidType) {
-      return `Неподдерживаемый формат файла. Разрешены: ${ALLOWED_EXTENSIONS.join(', ')}`
+      return t('upload.invalidFormat', { formats: ALLOWED_EXTENSIONS.join(', ') })
     }
 
-    // Check file size
     const sizeMB = file.size / (1024 * 1024)
     if (sizeMB > maxSize) {
-      return `Файл слишком большой. Максимальный размер: ${maxSize} MB`
+      return t('upload.fileTooLarge', { size: maxSize })
     }
 
     return null
@@ -58,7 +58,7 @@ function FileUploader({
       setError(null)
       onFileSelect(file)
     },
-    [onFileSelect, maxSize]
+    [onFileSelect, maxSize, t]
   )
 
   const handleDrop = useCallback(
@@ -79,7 +79,6 @@ function FileUploader({
     if (file) {
       handleFile(file)
     }
-    // Reset input so same file can be selected again
     e.target.value = ''
   }
 
@@ -105,7 +104,6 @@ function FileUploader({
     onFileSelect(null as unknown as File)
   }
 
-  // Show selected file preview
   if (selectedFile && !error) {
     return (
       <div className="border-2 border-dashed border-gray-300 rounded-xl p-6">
@@ -117,7 +115,6 @@ function FileUploader({
             <p className="font-medium text-gray-900 truncate">{selectedFile.name}</p>
             <p className="text-sm text-gray-500">{formatFileSize(selectedFile.size)}</p>
 
-            {/* Upload progress */}
             {uploadProgress && uploadProgress.status === 'uploading' && (
               <div className="mt-2">
                 <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
@@ -126,12 +123,14 @@ function FileUploader({
                     style={{ width: `${uploadProgress.progress}%` }}
                   />
                 </div>
-                <p className="text-xs text-gray-500 mt-1">{uploadProgress.progress}% загружено</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  {t('upload.progress', { progress: uploadProgress.progress })}
+                </p>
               </div>
             )}
 
             {uploadProgress && uploadProgress.status === 'error' && (
-              <p className="text-sm text-red-600 mt-1">{uploadProgress.error || 'Ошибка загрузки'}</p>
+              <p className="text-sm text-red-600 mt-1">{uploadProgress.error || t('upload.error')}</p>
             )}
           </div>
 
@@ -146,7 +145,7 @@ function FileUploader({
               <button
                 onClick={clearFile}
                 className="p-1 hover:bg-gray-100 rounded transition-colors"
-                aria-label="Удалить файл"
+                aria-label={t('upload.removeFile')}
               >
                 <X className="h-5 w-5 text-gray-400 hover:text-gray-600" />
               </button>
@@ -157,7 +156,6 @@ function FileUploader({
     )
   }
 
-  // Drop zone
   return (
     <div className="space-y-2">
       <div
@@ -180,21 +178,14 @@ function FileUploader({
             isDragging ? 'text-blue-500' : error ? 'text-red-400' : 'text-gray-400'
           }`}
         />
-        <p className="text-base font-medium text-gray-900 mb-1">
-          Перетащите файл сюда
-        </p>
-        <p className="text-sm text-gray-600 mb-3">или</p>
+        <p className="text-base font-medium text-gray-900 mb-1">{t('upload.dropFile')}</p>
+        <p className="text-sm text-gray-600 mb-3">{t('upload.or')}</p>
         <label className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 cursor-pointer transition-colors">
-          <span>Выбрать файл</span>
-          <input
-            type="file"
-            accept={accept}
-            onChange={handleFileSelect}
-            className="hidden"
-          />
+          <span>{t('upload.chooseFile')}</span>
+          <input type="file" accept={accept} onChange={handleFileSelect} className="hidden" />
         </label>
         <p className="text-xs text-gray-500 mt-4">
-          Поддерживаемые форматы: PDF, EPUB, TXT, DOCX (до {maxSize} MB)
+          {t('upload.supportedFormats', { size: maxSize })}
         </p>
       </div>
 

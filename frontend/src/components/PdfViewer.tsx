@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import 'react-pdf/dist/Page/AnnotationLayer.css'
 import 'react-pdf/dist/Page/TextLayer.css'
+import { useLanguage } from '../contexts/LanguageContext'
 
 // Set up PDF.js worker using Vite's URL import
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
@@ -25,6 +26,7 @@ interface PdfViewerProps {
 }
 
 function PdfViewer({ url, title }: PdfViewerProps) {
+  const { t } = useLanguage()
   const [numPages, setNumPages] = useState<number | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [scale, setScale] = useState(1.0)
@@ -38,8 +40,8 @@ function PdfViewer({ url, title }: PdfViewerProps) {
 
   const onDocumentLoadError = useCallback((error: Error) => {
     console.error('Error loading PDF:', error)
-    setError('Не удалось загрузить документ')
-  }, [])
+    setError(t('reader.pdfLoadError'))
+  }, [t])
 
   const goToPage = (page: number) => {
     if (numPages) {
@@ -101,7 +103,7 @@ function PdfViewer({ url, title }: PdfViewerProps) {
             onClick={goToPreviousPage}
             disabled={currentPage <= 1}
             className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-            title="Предыдущая страница"
+            title={t('reader.previousPage')}
           >
             <ChevronLeft className="h-5 w-5" />
           </button>
@@ -115,14 +117,14 @@ function PdfViewer({ url, title }: PdfViewerProps) {
               max={numPages || 1}
               className="w-12 text-center border rounded px-1 py-1"
             />
-            <span className="text-gray-500">из {numPages || '—'}</span>
+            <span className="text-gray-500">{t('reader.of')} {numPages || '-'}</span>
           </div>
 
           <button
             onClick={goToNextPage}
             disabled={!numPages || currentPage >= numPages}
             className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-            title="Следующая страница"
+            title={t('reader.nextPage')}
           >
             <ChevronRight className="h-5 w-5" />
           </button>
@@ -141,7 +143,7 @@ function PdfViewer({ url, title }: PdfViewerProps) {
             onClick={zoomOut}
             disabled={scale <= 0.5}
             className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-            title="Уменьшить"
+            title={t('reader.zoomOut')}
           >
             <ZoomOut className="h-5 w-5" />
           </button>
@@ -149,7 +151,7 @@ function PdfViewer({ url, title }: PdfViewerProps) {
           <button
             onClick={resetZoom}
             className="px-2 py-1 text-sm border rounded hover:bg-gray-50 min-w-[60px]"
-            title="Сбросить масштаб"
+            title={t('reader.resetZoom')}
           >
             {Math.round(scale * 100)}%
           </button>
@@ -158,7 +160,7 @@ function PdfViewer({ url, title }: PdfViewerProps) {
             onClick={zoomIn}
             disabled={scale >= 3}
             className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-            title="Увеличить"
+            title={t('reader.zoomIn')}
           >
             <ZoomIn className="h-5 w-5" />
           </button>
@@ -168,7 +170,7 @@ function PdfViewer({ url, title }: PdfViewerProps) {
           <button
             onClick={rotate}
             className="p-2 rounded-lg hover:bg-gray-100"
-            title="Повернуть"
+            title={t('reader.rotate')}
           >
             <RotateCw className="h-5 w-5" />
           </button>
@@ -183,7 +185,7 @@ function PdfViewer({ url, title }: PdfViewerProps) {
               }
             }}
             className="p-2 rounded-lg hover:bg-gray-100"
-            title="Полноэкранный режим"
+            title={t('reader.fullscreen')}
           >
             <Maximize className="h-5 w-5" />
           </button>
@@ -197,7 +199,7 @@ function PdfViewer({ url, title }: PdfViewerProps) {
             <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
               <AlertCircle className="h-8 w-8 text-red-500" />
             </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Ошибка загрузки</h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">{t('reader.loadError')}</h3>
             <p className="text-gray-600">{error}</p>
           </div>
         ) : (
@@ -207,8 +209,8 @@ function PdfViewer({ url, title }: PdfViewerProps) {
             onLoadError={onDocumentLoadError}
             loading={
               <div className="flex flex-col items-center justify-center py-12">
-                <Loader2 className="h-10 w-10 text-blue-600 animate-spin mb-4" />
-                <p className="text-gray-600">Загрузка документа...</p>
+                <Loader2 className="h-10 w-10 text-[#008A5E] animate-spin mb-4" />
+                <p className="text-gray-600">{t('reader.loadingDocument')}</p>
               </div>
             }
             className="flex justify-center"
@@ -219,7 +221,7 @@ function PdfViewer({ url, title }: PdfViewerProps) {
               rotate={rotation}
               loading={
                 <div className="flex items-center justify-center w-[595px] h-[842px] bg-white">
-                  <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
+                  <Loader2 className="h-8 w-8 text-[#008A5E] animate-spin" />
                 </div>
               }
               className="shadow-lg"
@@ -239,7 +241,7 @@ function PdfViewer({ url, title }: PdfViewerProps) {
             max={numPages}
             value={currentPage}
             onChange={(e) => goToPage(parseInt(e.target.value))}
-            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#008A5E]"
           />
         </div>
       )}

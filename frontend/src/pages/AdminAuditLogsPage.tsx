@@ -1,10 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
 import { adminApi, getErrorMessage } from '../services/api'
+import { useLanguage } from '../contexts/LanguageContext'
 import type { AuditLogEntry } from '../types'
 
-function formatDetails(details: Record<string, unknown> | null): string {
+function formatDetails(details: Record<string, unknown> | null, fallback: string): string {
   if (!details) {
-    return 'No details'
+    return fallback
   }
 
   return Object.entries(details)
@@ -13,6 +14,7 @@ function formatDetails(details: Record<string, unknown> | null): string {
 }
 
 function AdminAuditLogsPage() {
+  const { t } = useLanguage()
   const { data, isLoading, error } = useQuery({
     queryKey: ['admin-audit-logs'],
     queryFn: async () => {
@@ -26,11 +28,11 @@ function AdminAuditLogsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Audit Log</h1>
-        <p className="text-gray-600 mt-1">Administrative and moderation actions across users and books.</p>
+        <h1 className="text-2xl font-bold text-gray-900">{t('admin.auditLog')}</h1>
+        <p className="text-gray-600 mt-1">{t('admin.auditSubtitle')}</p>
       </div>
 
-      {isLoading && <p className="text-gray-500">Loading audit log...</p>}
+      {isLoading && <p className="text-gray-500">{t('admin.loadingAudit')}</p>}
       {error && <p className="text-red-600">{getErrorMessage(error)}</p>}
 
       <div className="bg-white border rounded-xl overflow-hidden">
@@ -38,11 +40,11 @@ function AdminAuditLogsPage() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Time</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Actor</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Action</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Target</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Details</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{t('admin.time')}</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{t('admin.actor')}</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{t('admin.action')}</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{t('admin.target')}</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{t('admin.detailsColumn')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -53,15 +55,15 @@ function AdminAuditLogsPage() {
                   </td>
                   <td className="px-4 py-4">
                     <div>
-                      <p className="font-medium text-gray-900">{item.actor?.username || 'system'}</p>
-                      <p className="text-sm text-gray-500">{item.actor?.email || 'No actor'}</p>
+                      <p className="font-medium text-gray-900">{item.actor?.username || t('admin.system')}</p>
+                      <p className="text-sm text-gray-500">{item.actor?.email || t('admin.noActor')}</p>
                     </div>
                   </td>
                   <td className="px-4 py-4 text-sm text-gray-700">{item.action}</td>
                   <td className="px-4 py-4 text-sm text-gray-700">
                     {item.entityType} {item.entityId ? `#${item.entityId}` : ''}
                   </td>
-                  <td className="px-4 py-4 text-sm text-gray-600">{formatDetails(item.details)}</td>
+                  <td className="px-4 py-4 text-sm text-gray-600">{formatDetails(item.details, t('admin.noDetails'))}</td>
                 </tr>
               ))}
             </tbody>

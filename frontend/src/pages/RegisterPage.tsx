@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { useLanguage } from '../contexts/LanguageContext'
 import { getErrorMessage } from '../services/api'
 import { BookOpen, Mail, Lock, User, Loader2, AlertCircle, CheckCircle } from 'lucide-react'
 
 const RegisterPage = () => {
   const navigate = useNavigate()
   const { register, isLoading } = useAuth()
+  const { t } = useLanguage()
 
   const [email, setEmail] = useState('')
   const [username, setUsername] = useState('')
@@ -14,12 +16,11 @@ const RegisterPage = () => {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
 
-  // Password requirements
   const passwordRequirements = [
-    { test: (p: string) => p.length >= 8, label: 'Минимум 8 символов' },
-    { test: (p: string) => /[A-Z]/.test(p), label: 'Заглавная буква' },
-    { test: (p: string) => /[a-z]/.test(p), label: 'Строчная буква' },
-    { test: (p: string) => /\d/.test(p), label: 'Цифра' },
+    { test: (p: string) => p.length >= 8, label: t('auth.reqMinLength') },
+    { test: (p: string) => /[A-Z]/.test(p), label: t('auth.reqUppercase') },
+    { test: (p: string) => /[a-z]/.test(p), label: t('auth.reqLowercase') },
+    { test: (p: string) => /\d/.test(p), label: t('auth.reqDigit') },
   ]
 
   const isPasswordValid = passwordRequirements.every((req) => req.test(password))
@@ -29,24 +30,23 @@ const RegisterPage = () => {
     e.preventDefault()
     setError(null)
 
-    // Validation
     if (!email.trim() || !username.trim() || !password.trim()) {
-      setError('Заполните все поля')
+      setError(t('auth.requiredFields'))
       return
     }
 
     if (username.length < 3) {
-      setError('Имя пользователя должно быть не менее 3 символов')
+      setError(t('auth.usernameMin'))
       return
     }
 
     if (!isPasswordValid) {
-      setError('Пароль не соответствует требованиям')
+      setError(t('auth.passwordInvalid'))
       return
     }
 
     if (!doPasswordsMatch) {
-      setError('Пароли не совпадают')
+      setError(t('auth.passwordMismatch'))
       return
     }
 
@@ -61,21 +61,16 @@ const RegisterPage = () => {
   return (
     <div className="min-h-[80vh] flex items-center justify-center py-8">
       <div className="w-full max-w-md">
-        {/* Logo */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
             <BookOpen className="w-8 h-8 text-blue-600" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Регистрация</h1>
-          <p className="text-gray-500 mt-2">
-            Создайте аккаунт для доступа к библиотеке
-          </p>
+          <h1 className="text-2xl font-bold text-gray-900">{t('auth.registerTitle')}</h1>
+          <p className="text-gray-500 mt-2">{t('auth.registerSubtitle')}</p>
         </div>
 
-        {/* Form */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Error message */}
             {error && (
               <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
                 <AlertCircle className="w-4 h-4 flex-shrink-0" />
@@ -83,10 +78,9 @@ const RegisterPage = () => {
               </div>
             )}
 
-            {/* Email field */}
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                Email
+                {t('common.email')}
               </label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -104,10 +98,9 @@ const RegisterPage = () => {
               </div>
             </div>
 
-            {/* Username field */}
             <div>
               <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
-                Имя пользователя
+                {t('common.username')}
               </label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -125,10 +118,9 @@ const RegisterPage = () => {
               </div>
             </div>
 
-            {/* Password field */}
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-                Пароль
+                {t('common.password')}
               </label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -137,14 +129,13 @@ const RegisterPage = () => {
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Придумайте пароль"
+                  placeholder={t('auth.passwordCreatePlaceholder')}
                   className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow"
                   required
                   autoComplete="new-password"
                 />
               </div>
 
-              {/* Password requirements */}
               {password.length > 0 && (
                 <div className="mt-2 space-y-1">
                   {passwordRequirements.map((req, index) => (
@@ -162,10 +153,9 @@ const RegisterPage = () => {
               )}
             </div>
 
-            {/* Confirm password field */}
             <div>
               <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
-                Подтвердите пароль
+                {t('auth.passwordConfirm')}
               </label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -174,7 +164,7 @@ const RegisterPage = () => {
                   type="password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Повторите пароль"
+                  placeholder={t('auth.passwordConfirmPlaceholder')}
                   className={`w-full pl-10 pr-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow ${
                     confirmPassword.length > 0 && !doPasswordsMatch
                       ? 'border-red-300 bg-red-50'
@@ -185,11 +175,10 @@ const RegisterPage = () => {
                 />
               </div>
               {confirmPassword.length > 0 && !doPasswordsMatch && (
-                <p className="mt-1 text-xs text-red-500">Пароли не совпадают</p>
+                <p className="mt-1 text-xs text-red-500">{t('auth.passwordMismatch')}</p>
               )}
             </div>
 
-            {/* Submit button */}
             <button
               type="submit"
               disabled={isLoading || !isPasswordValid || !doPasswordsMatch}
@@ -198,23 +187,19 @@ const RegisterPage = () => {
               {isLoading ? (
                 <>
                   <Loader2 className="w-5 h-5 animate-spin" />
-                  Регистрация...
+                  {t('auth.registering')}
                 </>
               ) : (
-                'Зарегистрироваться'
+                t('auth.registerButton')
               )}
             </button>
           </form>
 
-          {/* Login link */}
           <div className="mt-6 pt-6 border-t border-gray-200 text-center">
             <p className="text-gray-600">
-              Уже есть аккаунт?{' '}
-              <Link
-                to="/login"
-                className="text-blue-600 hover:text-blue-700 font-medium"
-              >
-                Войти
+              {t('auth.haveAccount')}{' '}
+              <Link to="/login" className="text-blue-600 hover:text-blue-700 font-medium">
+                {t('auth.loginButton')}
               </Link>
             </p>
           </div>

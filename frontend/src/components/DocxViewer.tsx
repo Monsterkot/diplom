@@ -9,6 +9,7 @@ import {
   Minimize,
 } from 'lucide-react'
 import { booksApi } from '../services/api'
+import { useLanguage } from '../contexts/LanguageContext'
 import '../styles/docx-viewer.css'
 
 interface DocxViewerProps {
@@ -24,6 +25,7 @@ interface HtmlContent {
 }
 
 function DocxViewer({ url, bookId, title, onDownload }: DocxViewerProps) {
+  const { t } = useLanguage()
   void url
   const [content, setContent] = useState<HtmlContent | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -45,7 +47,7 @@ function DocxViewer({ url, bookId, title, onDownload }: DocxViewerProps) {
         // Проверка на пустой HTML
         if (!response.data.html || response.data.html.trim() === '') {
           console.warn('Получен пустой HTML от сервера')
-          setError('Документ пуст или не удалось конвертировать')
+          setError(t('reader.emptyDocx'))
           setIsLoading(false)
           return
         }
@@ -53,14 +55,14 @@ function DocxViewer({ url, bookId, title, onDownload }: DocxViewerProps) {
         setContent(response.data)
       } catch (err) {
         console.error('Error fetching HTML:', err)
-        setError('Не удалось загрузить документ. Проверьте, что файл корректный.')
+        setError(t('reader.docxLoadError'))
       } finally {
         setIsLoading(false)
       }
     }
 
     fetchHtml()
-  }, [bookId])
+  }, [bookId, t])
 
   // Handle fullscreen change
   useEffect(() => {
@@ -158,7 +160,7 @@ function DocxViewer({ url, bookId, title, onDownload }: DocxViewerProps) {
             onClick={zoomOut}
             disabled={scale <= 50}
             className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-            title="Уменьшить (Ctrl + -)"
+            title={`${t('reader.zoomOut')} (Ctrl + -)`}
           >
             <ZoomOut className="h-5 w-5" />
           </button>
@@ -166,7 +168,7 @@ function DocxViewer({ url, bookId, title, onDownload }: DocxViewerProps) {
           <button
             onClick={resetZoom}
             className="px-3 py-1 text-sm border rounded hover:bg-gray-50 min-w-[60px]"
-            title="Сбросить масштаб (Ctrl + 0)"
+            title={`${t('reader.resetZoom')} (Ctrl + 0)`}
           >
             {scale}%
           </button>
@@ -175,7 +177,7 @@ function DocxViewer({ url, bookId, title, onDownload }: DocxViewerProps) {
             onClick={zoomIn}
             disabled={scale >= 200}
             className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-            title="Увеличить (Ctrl + +)"
+            title={`${t('reader.zoomIn')} (Ctrl + +)`}
           >
             <ZoomIn className="h-5 w-5" />
           </button>
@@ -186,7 +188,7 @@ function DocxViewer({ url, bookId, title, onDownload }: DocxViewerProps) {
           <button
             onClick={handleDownload}
             className="p-2 rounded-lg hover:bg-gray-100"
-            title="Скачать документ"
+            title={t('reader.downloadFile')}
           >
             <Download className="h-5 w-5" />
           </button>
@@ -195,7 +197,7 @@ function DocxViewer({ url, bookId, title, onDownload }: DocxViewerProps) {
           <button
             onClick={toggleFullscreen}
             className="p-2 rounded-lg hover:bg-gray-100"
-            title={isFullscreen ? 'Выйти из полноэкранного режима' : 'Полноэкранный режим'}
+            title={isFullscreen ? t('reader.exitFullscreen') : t('reader.fullscreen')}
           >
             {isFullscreen ? (
               <Minimize className="h-5 w-5" />
@@ -210,16 +212,16 @@ function DocxViewer({ url, bookId, title, onDownload }: DocxViewerProps) {
       <div className="flex-grow overflow-auto bg-gray-200 p-4">
         {isLoading ? (
           <div className="flex flex-col items-center justify-center h-full">
-            <Loader2 className="h-10 w-10 text-blue-600 animate-spin mb-4" />
-            <p className="text-gray-700 font-medium">Загрузка документа...</p>
-            <p className="text-sm text-gray-500 mt-2">Конвертация DOCX в HTML</p>
+            <Loader2 className="h-10 w-10 text-[#008A5E] animate-spin mb-4" />
+            <p className="text-gray-700 font-medium">{t('reader.loadingDocument')}</p>
+            <p className="text-sm text-gray-500 mt-2">{t('reader.docxConversion')}</p>
           </div>
         ) : error ? (
           <div className="flex flex-col items-center justify-center h-full">
             <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
               <AlertCircle className="h-8 w-8 text-red-500" />
             </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Ошибка загрузки</h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">{t('reader.loadError')}</h3>
             <p className="text-gray-600 text-center max-w-md">{error}</p>
           </div>
         ) : content ? (
@@ -238,16 +240,16 @@ function DocxViewer({ url, bookId, title, onDownload }: DocxViewerProps) {
       {/* Status bar */}
       {!isLoading && !error && content && (
         <div className="flex-shrink-0 bg-white border-t px-4 py-2 flex items-center justify-between text-xs text-gray-500">
-          <span>DOCX Document</span>
+          <span>{t('reader.wordDocument')}</span>
           <span>
-            {content.text.length.toLocaleString()} символов
+            {content.text.length.toLocaleString()} {t('reader.characters')}
           </span>
         </div>
       )}
 
       {/* Keyboard shortcuts hint */}
       <div className="hidden md:block absolute bottom-4 right-4 text-xs text-gray-400 bg-white/80 px-2 py-1 rounded">
-        Ctrl + / - : Масштаб | Ctrl + 0 : Сброс | F : Fullscreen
+        {t('reader.shortcuts')}
       </div>
     </div>
   )

@@ -1,5 +1,6 @@
 import { ChevronLeft, ChevronRight, BookOpen, Loader2 } from 'lucide-react'
 import BookCard from './BookCard'
+import { useLanguage } from '../contexts/LanguageContext'
 import type { Book, ViewMode } from '../types'
 
 interface BookListProps {
@@ -29,109 +30,78 @@ function BookList({
   onEditBook,
   deletingBookId,
 }: BookListProps) {
+  const { t } = useLanguage()
   const currentPage = Math.floor(skip / limit) + 1
   const totalPages = Math.ceil(total / limit)
   const hasMore = skip + books.length < total
   const hasPrevious = skip > 0
 
   const goToPage = (page: number) => {
-    const newSkip = (page - 1) * limit
-    onPageChange(newSkip)
+    onPageChange((page - 1) * limit)
   }
 
-  const goToNextPage = () => {
-    if (hasMore) {
-      onPageChange(skip + limit)
-    }
-  }
-
-  const goToPreviousPage = () => {
-    if (hasPrevious) {
-      onPageChange(Math.max(0, skip - limit))
-    }
-  }
-
-  // Generate page numbers to display
   const getPageNumbers = () => {
     const pages: (number | 'ellipsis')[] = []
-    const showPages = 5 // Number of pages to show
+    const showPages = 5
 
     if (totalPages <= showPages + 2) {
-      // Show all pages if total is small
-      for (let i = 1; i <= totalPages; i++) {
-        pages.push(i)
-      }
+      for (let i = 1; i <= totalPages; i++) pages.push(i)
     } else {
-      // Always show first page
       pages.push(1)
-
-      if (currentPage > 3) {
-        pages.push('ellipsis')
-      }
-
-      // Show pages around current
+      if (currentPage > 3) pages.push('ellipsis')
       const start = Math.max(2, currentPage - 1)
       const end = Math.min(totalPages - 1, currentPage + 1)
-
-      for (let i = start; i <= end; i++) {
-        pages.push(i)
-      }
-
-      if (currentPage < totalPages - 2) {
-        pages.push('ellipsis')
-      }
-
-      // Always show last page
+      for (let i = start; i <= end; i++) pages.push(i)
+      if (currentPage < totalPages - 2) pages.push('ellipsis')
       pages.push(totalPages)
     }
 
     return pages
   }
 
-  // Loading state
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center py-16">
         <Loader2 className="h-10 w-10 text-blue-600 animate-spin mb-4" />
-        <p className="text-gray-600">Загрузка книг...</p>
+        <p className="text-gray-600">{t('library.loadingBooks')}</p>
       </div>
     )
   }
 
-  // Error state
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center py-16">
         <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
           <BookOpen className="h-8 w-8 text-red-500" />
         </div>
-        <h3 className="text-lg font-medium text-gray-900 mb-2">Ошибка загрузки</h3>
+        <h3 className="text-lg font-medium text-gray-900 mb-2">{t('library.loadError')}</h3>
         <p className="text-gray-600 text-center max-w-md">{error}</p>
       </div>
     )
   }
 
-  // Empty state
   if (books.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16">
         <BookOpen className="h-16 w-16 text-gray-300 mb-4" />
-        <h3 className="text-lg font-medium text-gray-900 mb-2">Книги не найдены</h3>
-        <p className="text-gray-600">Попробуйте изменить параметры поиска или фильтры</p>
+        <h3 className="text-lg font-medium text-gray-900 mb-2">{t('library.notFound')}</h3>
+        <p className="text-gray-600">{t('library.tryChangeFilters')}</p>
       </div>
     )
   }
 
   return (
     <div className="space-y-6">
-      {/* Results count */}
       <div className="flex items-center justify-between">
         <p className="text-sm text-gray-600">
-          Показано {skip + 1}-{Math.min(skip + books.length, total)} из {total} книг
+          {t('library.showing', {
+            from: skip + 1,
+            to: Math.min(skip + books.length, total),
+            total,
+          })}
         </p>
       </div>
 
-      {/* Book grid/list */}
       <div
         className={
           viewMode === 'grid'
@@ -151,20 +121,17 @@ function BookList({
         ))}
       </div>
 
-      {/* Pagination */}
       {totalPages > 1 && (
         <nav className="flex items-center justify-center gap-1">
-          {/* Previous button */}
           <button
-            onClick={goToPreviousPage}
+            onClick={() => hasPrevious && onPageChange(Math.max(0, skip - limit))}
             disabled={!hasPrevious}
             className="p-2 rounded-lg border hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-            aria-label="Предыдущая страница"
+            aria-label={t('library.previousPage')}
           >
             <ChevronLeft className="h-5 w-5" />
           </button>
 
-          {/* Page numbers */}
           <div className="flex items-center gap-1">
             {getPageNumbers().map((page, index) =>
               page === 'ellipsis' ? (
@@ -187,12 +154,11 @@ function BookList({
             )}
           </div>
 
-          {/* Next button */}
           <button
-            onClick={goToNextPage}
+            onClick={() => hasMore && onPageChange(skip + limit)}
             disabled={!hasMore}
             className="p-2 rounded-lg border hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-            aria-label="Следующая страница"
+            aria-label={t('library.nextPage')}
           >
             <ChevronRight className="h-5 w-5" />
           </button>

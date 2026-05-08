@@ -1,5 +1,6 @@
 import { Routes, Route } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
+import { LanguageProvider } from './contexts/LanguageContext'
 import Layout from './components/Layout'
 import ProtectedRoute from './components/ProtectedRoute'
 import HomePage from './pages/HomePage'
@@ -18,9 +19,10 @@ import AdminServiceCredentialsPage from './pages/AdminServiceCredentialsPage'
 
 function App() {
   return (
-    <AuthProvider>
-      <Routes>
-        <Route path="/" element={<Layout />}>
+    <LanguageProvider>
+      <AuthProvider>
+        <Routes>
+          <Route path="/" element={<Layout />}>
           {/* Public routes */}
           <Route index element={<HomePage />} />
           <Route path="login" element={<LoginPage />} />
@@ -107,9 +109,10 @@ function App() {
               </ProtectedRoute>
             }
           />
-        </Route>
-      </Routes>
-    </AuthProvider>
+          </Route>
+        </Routes>
+      </AuthProvider>
+    </LanguageProvider>
   )
 }
 

@@ -1,5 +1,7 @@
 import { useState, useMemo } from 'react'
+import type { ReactNode } from 'react'
 import type { SearchFacets } from '../types'
+import { useLanguage } from '../contexts/LanguageContext'
 
 interface SearchFiltersProps {
   facets: SearchFacets
@@ -14,21 +16,19 @@ interface SearchFiltersProps {
   onFilterChange: (filterType: string, value: string | undefined) => void
 }
 
-// Language code to name mapping
 const LANGUAGE_NAMES: Record<string, string> = {
   ru: 'Русский',
   en: 'English',
   uk: 'Українська',
   de: 'Deutsch',
-  fr: 'Français',
-  es: 'Español',
+  fr: 'Francais',
+  es: 'Espanol',
   it: 'Italiano',
   pl: 'Polski',
-  zh: '中文',
-  ja: '日本語',
+  zh: 'Chinese',
+  ja: 'Japanese',
 }
 
-// Content type labels
 const CONTENT_TYPE_LABELS: Record<string, string> = {
   'application/pdf': 'PDF',
   'application/epub+zip': 'EPUB',
@@ -36,14 +36,13 @@ const CONTENT_TYPE_LABELS: Record<string, string> = {
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'DOCX',
 }
 
-// Filter section component
 const FilterSection = ({
   title,
   children,
   defaultOpen = true,
 }: {
   title: string
-  children: React.ReactNode
+  children: ReactNode
   defaultOpen?: boolean
 }) => {
   const [isOpen, setIsOpen] = useState(defaultOpen)
@@ -69,7 +68,6 @@ const FilterSection = ({
   )
 }
 
-// Facet list with "show more" functionality
 const FacetList = ({
   items,
   selected,
@@ -83,6 +81,7 @@ const FacetList = ({
   getLabel?: (value: string) => string
   maxVisible?: number
 }) => {
+  const { t } = useLanguage()
   const [showAll, setShowAll] = useState(false)
 
   const visibleItems = showAll ? items : items.slice(0, maxVisible)
@@ -94,7 +93,7 @@ const FacetList = ({
         <label
           key={value}
           className={`flex items-center gap-2 px-2 py-1 rounded cursor-pointer hover:bg-gray-100 ${
-            selected === value ? 'bg-blue-50 text-blue-700' : ''
+            selected === value ? 'bg-[#DAF3E6] text-[#016646]' : ''
           }`}
         >
           <input
@@ -104,28 +103,20 @@ const FacetList = ({
             onChange={() => onSelect(selected === value ? undefined : value)}
             className="sr-only"
           />
-          <span className="flex-1 text-sm truncate">
-            {getLabel ? getLabel(value) : value}
-          </span>
+          <span className="flex-1 text-sm truncate">{getLabel ? getLabel(value) : value}</span>
           <span className="text-xs text-gray-400">{count}</span>
         </label>
       ))}
 
       {hasMore && (
-        <button
-          onClick={() => setShowAll(!showAll)}
-          className="text-sm text-blue-600 hover:text-blue-700 px-2 py-1"
-        >
-          {showAll ? 'Свернуть' : `Показать все (${items.length})`}
+        <button onClick={() => setShowAll(!showAll)} className="text-sm text-[#008A5E] hover:text-[#016646] px-2 py-1">
+          {showAll ? t('search.collapse') : t('search.showAll', { count: items.length })}
         </button>
       )}
 
       {selected && (
-        <button
-          onClick={() => onSelect(undefined)}
-          className="text-sm text-gray-500 hover:text-gray-700 px-2 py-1"
-        >
-          Сбросить
+        <button onClick={() => onSelect(undefined)} className="text-sm text-gray-500 hover:text-gray-700 px-2 py-1">
+          {t('common.reset')}
         </button>
       )}
     </div>
@@ -133,7 +124,8 @@ const FacetList = ({
 }
 
 const SearchFilters = ({ facets, activeFilters, onFilterChange }: SearchFiltersProps) => {
-  // Sort facets by count
+  const { t } = useLanguage()
+
   const sortedCategories = useMemo(() => {
     if (!facets.category) return []
     return Object.entries(facets.category).sort((a, b) => b[1] - a[1])
@@ -159,7 +151,6 @@ const SearchFilters = ({ facets, activeFilters, onFilterChange }: SearchFiltersP
     return Object.entries(facets.publishedYear).sort((a, b) => parseInt(b[0]) - parseInt(a[0]))
   }, [facets.publishedYear])
 
-  // Get year range for slider
   const yearRange = useMemo(() => {
     if (sortedYears.length === 0) return { min: 1900, max: new Date().getFullYear() }
     const years = sortedYears.map(([year]) => parseInt(year))
@@ -171,22 +162,16 @@ const SearchFilters = ({ facets, activeFilters, onFilterChange }: SearchFiltersP
 
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-4">
-      <h2 className="text-lg font-semibold text-gray-900 mb-4">Фильтры</h2>
+      <h2 className="text-lg font-semibold text-gray-900 mb-4">{t('search.filters')}</h2>
 
-      {/* Category filter */}
       {sortedCategories.length > 0 && (
-        <FilterSection title="Категория">
-          <FacetList
-            items={sortedCategories}
-            selected={activeFilters.category}
-            onSelect={(value) => onFilterChange('category', value)}
-          />
+        <FilterSection title={t('search.category')}>
+          <FacetList items={sortedCategories} selected={activeFilters.category} onSelect={(value) => onFilterChange('category', value)} />
         </FilterSection>
       )}
 
-      {/* File type filter */}
       {sortedContentTypes.length > 0 && (
-        <FilterSection title="Тип файла">
+        <FilterSection title={t('search.fileType')}>
           <FacetList
             items={sortedContentTypes}
             selected={activeFilters.contentType}
@@ -196,9 +181,8 @@ const SearchFilters = ({ facets, activeFilters, onFilterChange }: SearchFiltersP
         </FilterSection>
       )}
 
-      {/* Language filter */}
       {sortedLanguages.length > 0 && (
-        <FilterSection title="Язык">
+        <FilterSection title={t('search.language')}>
           <FacetList
             items={sortedLanguages}
             selected={activeFilters.language}
@@ -208,45 +192,37 @@ const SearchFilters = ({ facets, activeFilters, onFilterChange }: SearchFiltersP
         </FilterSection>
       )}
 
-      {/* Author filter */}
       {sortedAuthors.length > 0 && (
-        <FilterSection title="Автор" defaultOpen={false}>
-          <FacetList
-            items={sortedAuthors}
-            selected={activeFilters.author}
-            onSelect={(value) => onFilterChange('author', value)}
-            maxVisible={10}
-          />
+        <FilterSection title={t('search.author')} defaultOpen={false}>
+          <FacetList items={sortedAuthors} selected={activeFilters.author} onSelect={(value) => onFilterChange('author', value)} maxVisible={10} />
         </FilterSection>
       )}
 
-      {/* Year range filter */}
       {sortedYears.length > 0 && (
-        <FilterSection title="Год издания" defaultOpen={false}>
+        <FilterSection title={t('search.publicationYear')} defaultOpen={false}>
           <div className="space-y-3">
             <div className="flex items-center gap-2">
               <input
                 type="number"
-                placeholder="От"
+                placeholder={t('search.from')}
                 value={activeFilters.yearFrom || ''}
                 onChange={(e) => onFilterChange('yearFrom', e.target.value || undefined)}
                 min={yearRange.min}
                 max={yearRange.max}
-                className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-[#008A5E]"
               />
-              <span className="text-gray-400">—</span>
+              <span className="text-gray-400">-</span>
               <input
                 type="number"
-                placeholder="До"
+                placeholder={t('search.to')}
                 value={activeFilters.yearTo || ''}
                 onChange={(e) => onFilterChange('yearTo', e.target.value || undefined)}
                 min={yearRange.min}
                 max={yearRange.max}
-                className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-[#008A5E]"
               />
             </div>
 
-            {/* Popular years */}
             <div className="flex flex-wrap gap-1">
               {sortedYears.slice(0, 5).map(([year, count]) => (
                 <button
@@ -257,7 +233,7 @@ const SearchFilters = ({ facets, activeFilters, onFilterChange }: SearchFiltersP
                   }}
                   className={`px-2 py-0.5 text-xs rounded border ${
                     activeFilters.yearFrom === parseInt(year) && activeFilters.yearTo === parseInt(year)
-                      ? 'bg-blue-50 border-blue-300 text-blue-700'
+                      ? 'bg-[#DAF3E6] border-[#008A5E] text-[#016646]'
                       : 'border-gray-300 text-gray-600 hover:bg-gray-50'
                   }`}
                 >
@@ -274,22 +250,17 @@ const SearchFilters = ({ facets, activeFilters, onFilterChange }: SearchFiltersP
                 }}
                 className="text-sm text-gray-500 hover:text-gray-700"
               >
-                Сбросить
+                {t('common.reset')}
               </button>
             )}
           </div>
         </FilterSection>
       )}
 
-      {/* No facets message */}
       {sortedCategories.length === 0 &&
         sortedAuthors.length === 0 &&
         sortedLanguages.length === 0 &&
-        sortedContentTypes.length === 0 && (
-          <p className="text-sm text-gray-500 py-4">
-            Выполните поиск, чтобы увидеть доступные фильтры
-          </p>
-        )}
+        sortedContentTypes.length === 0 && <p className="text-sm text-gray-500 py-4">{t('search.noFacets')}</p>}
     </div>
   )
 }

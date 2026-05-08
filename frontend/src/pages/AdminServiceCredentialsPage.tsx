@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Copy, Database, HardDrive, KeyRound, Link as LinkIcon, Server } from 'lucide-react'
 import { adminApi, getErrorMessage } from '../services/api'
+import { useLanguage } from '../contexts/LanguageContext'
 
 const iconMap = {
   web: HardDrive,
@@ -11,6 +12,7 @@ const iconMap = {
 } as const
 
 function AdminServiceCredentialsPage() {
+  const { t } = useLanguage()
   const { data, isLoading, error } = useQuery({
     queryKey: ['admin-service-credentials'],
     queryFn: async () => {
@@ -28,13 +30,13 @@ function AdminServiceCredentialsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Service Credentials</h1>
+        <h1 className="text-2xl font-bold text-gray-900">{t('admin.serviceCredentials')}</h1>
         <p className="mt-1 text-gray-600">
-          Access details for infrastructure services. This section is available only to administrators.
+          {t('admin.serviceCredentialsSubtitle')}
         </p>
       </div>
 
-      {isLoading && <p className="text-gray-500">Loading service credentials...</p>}
+      {isLoading && <p className="text-gray-500">{t('admin.loadingServiceCredentials')}</p>}
       {error && <p className="text-red-600">{getErrorMessage(error)}</p>}
 
       <div className="grid gap-4">
@@ -69,7 +71,7 @@ function AdminServiceCredentialsPage() {
                 )}
                 {service.username && (
                   <CredentialRow
-                    label="Username"
+                    label={t('admin.username')}
                     value={service.username}
                     icon={<KeyRound className="h-4 w-4 text-gray-400" />}
                     onCopy={handleCopy}
@@ -77,7 +79,7 @@ function AdminServiceCredentialsPage() {
                 )}
                 {service.password && (
                   <CredentialRow
-                    label={service.accessType === 'api_key' ? 'Master key' : 'Password'}
+                    label={service.accessType === 'api_key' ? t('admin.masterKey') : t('admin.password')}
                     value={service.password}
                     icon={<KeyRound className="h-4 w-4 text-gray-400" />}
                     onCopy={handleCopy}
@@ -86,7 +88,7 @@ function AdminServiceCredentialsPage() {
                 )}
                 {service.database && (
                   <CredentialRow
-                    label="Database"
+                    label={t('admin.database')}
                     value={service.database}
                     icon={<Database className="h-4 w-4 text-gray-400" />}
                     onCopy={handleCopy}
@@ -106,7 +108,7 @@ function AdminServiceCredentialsPage() {
 
       {!isLoading && !error && services.length === 0 && (
         <div className="rounded-2xl border border-dashed bg-white px-6 py-10 text-center text-gray-500">
-          No service credentials are configured.
+          {t('admin.noServiceCredentials')}
         </div>
       )}
     </div>
@@ -122,6 +124,7 @@ interface CredentialRowProps {
 }
 
 function CredentialRow({ label, value, icon, onCopy, secret = false }: CredentialRowProps) {
+  const { t } = useLanguage()
   return (
     <div className="rounded-xl border bg-gray-50 p-4">
       <div className="flex items-center justify-between gap-3">
@@ -134,7 +137,7 @@ function CredentialRow({ label, value, icon, onCopy, secret = false }: Credentia
           className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100"
         >
           <Copy className="h-3.5 w-3.5" />
-          Copy
+          {t('admin.copy')}
         </button>
       </div>
       <div className="mt-3 break-all rounded-lg bg-white px-3 py-2 font-mono text-sm text-gray-900">

@@ -3,9 +3,11 @@ import { useQuery } from '@tanstack/react-query'
 import { Shield, Users, BookOpen, EyeOff, Upload, Globe, ClipboardList, KeyRound } from 'lucide-react'
 import { adminApi, getErrorMessage } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
+import { useLanguage } from '../contexts/LanguageContext'
 
 function AdminDashboardPage() {
   const { isAdmin, canManageBooks } = useAuth()
+  const { t } = useLanguage()
   const { data, isLoading, error } = useQuery({
     queryKey: ['admin-stats'],
     queryFn: async () => {
@@ -16,21 +18,21 @@ function AdminDashboardPage() {
 
   const cards = data
     ? [
-        { label: 'Users', value: data.totalUsers, icon: Users },
-        { label: 'Admins', value: data.adminUsers, icon: Shield },
-        { label: 'Moderators', value: data.moderatorUsers, icon: Shield },
-        { label: 'Books', value: data.totalBooks, icon: BookOpen },
-        { label: 'Hidden Books', value: data.hiddenBooks, icon: EyeOff },
-        { label: 'Uploaded', value: data.uploadedBooks, icon: Upload },
-        { label: 'Imported', value: data.importedBooks, icon: Globe },
+        { label: t('admin.users'), value: data.totalUsers, icon: Users },
+        { label: t('admin.admins'), value: data.adminUsers, icon: Shield },
+        { label: t('admin.moderators'), value: data.moderatorUsers, icon: Shield },
+        { label: t('admin.books'), value: data.totalBooks, icon: BookOpen },
+        { label: t('admin.hiddenBooks'), value: data.hiddenBooks, icon: EyeOff },
+        { label: t('admin.uploaded'), value: data.uploadedBooks, icon: Upload },
+        { label: t('admin.imported'), value: data.importedBooks, icon: Globe },
       ]
     : []
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
-        <p className="text-gray-600 mt-1">Manage users, content, and visibility rules.</p>
+        <h1 className="text-2xl font-bold text-gray-900">{t('admin.dashboard')}</h1>
+        <p className="text-gray-600 mt-1">{t('admin.dashboardSubtitle')}</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -49,38 +51,38 @@ function AdminDashboardPage() {
         ))}
       </div>
 
-      {isLoading && <p className="text-gray-500">Loading admin statistics...</p>}
+      {isLoading && <p className="text-gray-500">{t('admin.loadingStats')}</p>}
       {error && <p className="text-red-600">{getErrorMessage(error)}</p>}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {isAdmin && (
           <Link to="/admin/users" className="bg-white border rounded-xl p-5 hover:border-blue-300 transition-colors">
-            <h2 className="text-lg font-semibold text-gray-900">Users</h2>
-            <p className="text-gray-600 mt-2">Change roles and block or unblock accounts.</p>
+            <h2 className="text-lg font-semibold text-gray-900">{t('admin.users')}</h2>
+            <p className="text-gray-600 mt-2">{t('admin.usersCard')}</p>
           </Link>
         )}
         {canManageBooks && (
           <Link to="/admin/books" className="bg-white border rounded-xl p-5 hover:border-blue-300 transition-colors">
-            <h2 className="text-lg font-semibold text-gray-900">Books</h2>
-            <p className="text-gray-600 mt-2">Hide, publish, or delete books from the catalog.</p>
+            <h2 className="text-lg font-semibold text-gray-900">{t('admin.books')}</h2>
+            <p className="text-gray-600 mt-2">{t('admin.booksCard')}</p>
           </Link>
         )}
         {isAdmin && (
           <Link to="/admin/audit-logs" className="bg-white border rounded-xl p-5 hover:border-blue-300 transition-colors">
             <div className="flex items-center gap-3">
               <ClipboardList className="w-5 h-5 text-blue-600" />
-              <h2 className="text-lg font-semibold text-gray-900">Audit Log</h2>
+              <h2 className="text-lg font-semibold text-gray-900">{t('admin.auditLog')}</h2>
             </div>
-            <p className="text-gray-600 mt-2">Review role changes, blocking, moderation, and book deletions.</p>
+            <p className="text-gray-600 mt-2">{t('admin.auditCard')}</p>
           </Link>
         )}
         {isAdmin && (
           <Link to="/admin/service-credentials" className="bg-white border rounded-xl p-5 hover:border-blue-300 transition-colors">
             <div className="flex items-center gap-3">
               <KeyRound className="w-5 h-5 text-blue-600" />
-              <h2 className="text-lg font-semibold text-gray-900">Service Access</h2>
+              <h2 className="text-lg font-semibold text-gray-900">{t('admin.serviceAccess')}</h2>
             </div>
-            <p className="text-gray-600 mt-2">View credentials and entry points for MinIO, PostgreSQL, Meilisearch, and Redis.</p>
+            <p className="text-gray-600 mt-2">{t('admin.serviceCard')}</p>
           </Link>
         )}
       </div>
